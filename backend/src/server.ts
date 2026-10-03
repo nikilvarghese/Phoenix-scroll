@@ -31,6 +31,16 @@ app.use(
   })
 );
 
+// Ensure DB connection for serverless/service requests
+app.use(async (_req, _res, next) => {
+  try {
+    await connectDB();
+  } catch (err) {
+    console.error('Database connection error in middleware:', err);
+  }
+  next();
+});
+
 // Structured Request Logging
 app.use(loggerMiddleware);
 
@@ -121,4 +131,8 @@ const startServer = async () => {
   });
 };
 
-startServer();
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  startServer();
+}
+
+export default app;
