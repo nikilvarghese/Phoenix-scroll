@@ -67,6 +67,28 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      const requestUrl = error.config?.url || '';
+      const isAuthEndpoint =
+        requestUrl.includes('/auth/login') ||
+        requestUrl.includes('/auth/register') ||
+        requestUrl.includes('/auth/send-otp') ||
+        requestUrl.includes('/auth/forgot-password');
+
+      if (!isAuthEndpoint) {
+        clearStoredToken();
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('auth_token_expired'));
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export const authService = {
   sendOtp: async (email: string, purpose: 'registration' | 'forgot_password' = 'registration') => {
     const res = await api.post<{ success: boolean; message: string; cooldownMs: number }>('/auth/send-otp', { email, purpose });

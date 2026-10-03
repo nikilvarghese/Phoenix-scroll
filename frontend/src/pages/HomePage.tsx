@@ -18,6 +18,8 @@ export const HomePage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [protectedStory, setProtectedStory] = useState<Story | null>(null);
 
+  const [fetchError, setFetchError] = useState(false);
+
   useEffect(() => {
     fetchStoriesAndProgress();
   }, [user]);
@@ -25,10 +27,20 @@ export const HomePage: React.FC = () => {
   const fetchStoriesAndProgress = async () => {
     try {
       setLoading(true);
-      const [fetchedStories, fetchedProgress] = await Promise.all([
+      setFetchError(false);
+
+      const [storiesResult, progressResult] = await Promise.allSettled([
         storyService.getStories(),
         progressService.getAllProgress(),
       ]);
+
+      const fetchedStories: Story[] = storiesResult.status === 'fulfilled' ? storiesResult.value : [];
+      const fetchedProgress: ReadingProgress[] = progressResult.status === 'fulfilled' ? progressResult.value : [];
+
+      if (storiesResult.status === 'rejected' && fetchedStories.length === 0) {
+        console.error('Failed to fetch stories:', storiesResult.reason);
+        setFetchError(true);
+      }
 
       // Collect all local storage progress
       const localProgressList: ReadingProgress[] = [];
@@ -113,6 +125,7 @@ export const HomePage: React.FC = () => {
       setProgressList(mergedProgress);
     } catch (err) {
       console.error('Failed to load stories or progress:', err);
+      setFetchError(true);
     } finally {
       setLoading(false);
     }
@@ -266,6 +279,24 @@ export const HomePage: React.FC = () => {
             {[1, 2, 3].map((n) => (
               <div key={n} className="h-96 rounded-2xl bg-stone-200/60 animate-pulse border border-stone-300/40" />
             ))}
+          </div>
+        ) : fetchError && stories.length === 0 ? (
+          <div className="py-16 text-center space-y-4 bg-paper-card rounded-2xl border border-paper-border/80 p-8 shadow-xs max-w-xl mx-auto">
+            <div className="w-12 h-12 rounded-full bg-amber-900/10 text-amber-900 flex items-center justify-center mx-auto">
+              <BookOpen className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-playfair text-xl font-bold text-stone-900">Manuscripts Temporarily Unavailable</h3>
+              <p className="text-sm text-stone-600 max-w-sm mx-auto leading-relaxed">
+                Could not connect to the story service. If the server was sleeping, please click retry below.
+              </p>
+            </div>
+            <button
+              onClick={fetchStoriesAndProgress}
+              className="inline-flex items-center space-x-2 px-5 py-2.5 bg-amber-900 hover:bg-amber-950 text-white rounded-xl text-xs font-semibold shadow-xs transition"
+            >
+              <span>Retry Connection</span>
+            </button>
           </div>
         ) : filteredStories.length === 0 ? (
           <div className="py-20 text-center space-y-5 bg-paper-card rounded-2xl border border-paper-border/80 p-8 shadow-xs max-w-xl mx-auto">

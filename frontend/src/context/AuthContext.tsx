@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types';
-import { authService, getStoredToken, getStoredUser, storeTokenAndUser } from '../services/api';
+import { authService, getStoredToken, getStoredUser, storeTokenAndUser, clearStoredToken } from '../services/api';
 
 interface AuthContextType {
   user: User | null;
@@ -20,6 +20,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const handleTokenExpired = () => {
+      setUser(null);
+    };
+
+    window.addEventListener('auth_token_expired', handleTokenExpired);
+    return () => window.removeEventListener('auth_token_expired', handleTokenExpired);
+  }, []);
+
+  useEffect(() => {
     const initAuth = async () => {
       const token = getStoredToken();
       if (token) {
@@ -28,10 +37,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(fetchedUser);
           storeTokenAndUser(token, fetchedUser, true);
         } catch (err: any) {
-          if (err.response?.status === 401) {
-            authService.logout();
-            setUser(null);
-          }
+          clearStoredToken();
+          setUser(null);
         }
       } else {
         setUser(null);
