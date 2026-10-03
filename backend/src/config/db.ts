@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { cleanDuplicateProgress } from '../utils/cleanDuplicates.js';
 
 export const connectDB = async () => {
   try {
@@ -10,6 +11,9 @@ export const connectDB = async () => {
     });
 
     console.log(`✅ Connected to MongoDB successfully (Database: 'storybook').`);
+
+    // Automatically clean up any pre-existing duplicate progress entries in MongoDB
+    await cleanDuplicateProgress();
   } catch (error) {
     console.error('❌ MongoDB Connection Error:', error);
     process.exit(1);

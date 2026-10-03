@@ -25,6 +25,7 @@ const ReadingProgressSchema: Schema = new Schema(
   { timestamps: true }
 );
 
-ReadingProgressSchema.index({ clientDeviceId: 1, storyId: 1 }, { unique: true });
+ReadingProgressSchema.index({ userId: 1, storyId: 1 }, { sparse: true });
+ReadingProgressSchema.index({ clientDeviceId: 1, storyId: 1 });
 
 export default mongoose.model<IReadingProgress>('ReadingProgress', ReadingProgressSchema);

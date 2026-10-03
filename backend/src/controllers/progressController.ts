@@ -7,14 +7,20 @@ export const saveProgress = async (req: AuthRequest, res: Response) => {
     const { storyId } = req.params;
     const { clientDeviceId, chapterId, chapterOrder, scrollPercentage, isCompleted } = req.body;
 
-    if (!clientDeviceId || !chapterId) {
-      return res.status(400).json({ message: 'Client device ID and chapter ID are required.' });
+    if (!chapterId) {
+      return res.status(400).json({ message: 'Chapter ID is required.' });
     }
 
     const userId = req.user?.id;
 
+    // Search query: if authenticated user, look up by { userId, storyId }
+    // Otherwise fallback to guest device { clientDeviceId, storyId }
+    const filterQuery: any = userId ? { userId, storyId } : { clientDeviceId, storyId };
+
     const updateData: any = {
+      clientDeviceId: clientDeviceId || 'guest_device',
       userId,
+      storyId,
       chapterId,
       chapterOrder: chapterOrder || 1,
       scrollPercentage: scrollPercentage || 0,
@@ -25,11 +31,27 @@ export const saveProgress = async (req: AuthRequest, res: Response) => {
       updateData.isCompleted = isCompleted;
     }
 
+    // Overwrite existing save so there is strictly 1 record per story per user/device
     const progress = await ReadingProgress.findOneAndUpdate(
-      { clientDeviceId, storyId },
+      filterQuery,
       updateData,
       { upsert: true, new: true }
     );
+
+    // Automatically purge any legacy duplicate saves for this story
+    if (userId) {
+      await ReadingProgress.deleteMany({
+        userId,
+        storyId,
+        _id: { $ne: progress._id },
+      });
+    } else if (clientDeviceId) {
+      await ReadingProgress.deleteMany({
+        clientDeviceId,
+        storyId,
+        _id: { $ne: progress._id },
+      });
+    }
 
     res.json(progress);
   } catch (err: any) {
@@ -40,13 +62,12 @@ export const saveProgress = async (req: AuthRequest, res: Response) => {
 export const getProgress = async (req: AuthRequest, res: Response) => {
   try {
     const { storyId } = req.params;
-    const clientDeviceId = (req.query.clientDeviceId as string) || req.headers['x-client-device-id'];
+    const userId = req.user?.id;
+    const clientDeviceId = (req.query.clientDeviceId as string) || (req.headers['x-client-device-id'] as string);
 
-    if (!clientDeviceId) {
-      return res.status(400).json({ message: 'Client device ID required.' });
-    }
+    const filterQuery: any = userId ? { userId, storyId } : { clientDeviceId, storyId };
 
-    const progress = await ReadingProgress.findOne({ clientDeviceId, storyId });
+    const progress = await ReadingProgress.findOne(filterQuery);
     if (!progress) {
       return res.status(404).json({ message: 'No reading progress found.' });
     }
@@ -77,9 +98,17 @@ export const getUserAllProgress = async (req: AuthRequest, res: Response) => {
       .sort({ lastReadAt: -1 });
 
     const isOwner = req.user?.role === 'owner';
+    const seenStoryIds = new Set<string>();
+
     const filteredList = progressList.filter((item) => {
       if (!item.storyId) return false;
       const storyObj = item.storyId as any;
+      const sId = storyObj._id.toString();
+
+      // Deduplicate to ensure strictly 1 save entry per story
+      if (seenStoryIds.has(sId)) return false;
+      seenStoryIds.add(sId);
+
       if (isOwner) return true;
       if (storyObj.ownerId && req.user?.id === storyObj.ownerId.toString()) return true;
       if (!storyObj.isPublished) return false;
