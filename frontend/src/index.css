@@ -1,0 +1,154 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply min-h-screen transition-colors duration-300;
+  }
+}
+
+/* Reader Typography & Layout Theme Engines */
+.reader-theme-parchment {
+  background-color: #FBF7EE !important;
+  color: #2C2523 !important;
+}
+
+.reader-theme-night {
+  background-color: #121316 !important;
+  color: #E2E8F0 !important;
+}
+
+.reader-theme-sepia {
+  background-color: #F4ECD8 !important;
+  color: #3D3126 !important;
+}
+
+.reader-theme-paper {
+  background-color: #F9FAFB !important;
+  color: #1E293B !important;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.4);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.7);
+}
+
+/* Pro-reader typography styles */
+.prose-reader p {
+  margin-bottom: 0.85em;
+  text-indent: 0;
+}
+
+.prose-reader blockquote {
+  border-left: 3px solid rgba(180, 130, 80, 0.5);
+  padding-left: 1.25rem;
+  font-style: italic;
+  margin-top: 1.75em;
+  margin-bottom: 1.75em;
+  opacity: 0.9;
+}
+
+.prose-reader hr {
+  border: none;
+  text-align: center;
+  margin: 2.5em 0;
+}
+.prose-reader hr::after {
+  content: "✦   ✦   ✦";
+  font-size: 0.9em;
+  letter-spacing: 0.5em;
+  opacity: 0.5;
+}
+
+/* Part & Arc Header Styling */
+.part-banner {
+  text-align: center;
+  margin-top: 1.5rem;
+  margin-bottom: 2.5rem;
+  padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-top: 1px solid rgba(120, 53, 15, 0.2);
+  border-bottom: 1px solid rgba(120, 53, 15, 0.2);
+}
+
+.part-label {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: #78350f;
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.part-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #1c1917;
+  margin-top: 0.25rem;
+  margin-bottom: 0.35rem;
+}
+
+.arc-label {
+  font-family: Garamond, Georgia, serif;
+  font-size: 1.1rem;
+  font-style: italic;
+  color: #451a03;
+  display: block;
+  opacity: 0.9;
+}
+
+/* Automatic Drop Cap for ONLY the 1st letter of the entire Chapter/Prologue (1st paragraph on 1st page) */
+.prose-reader.chapter-first-page > p:not(.no-dropcap):not(.part-label):not(.part-title):not(.arc-label):first-of-type::first-letter,
+.prose-reader p.dropcap::first-letter,
+.dropcap::first-letter {
+  font-size: 3.5em;
+  float: left;
+  line-height: 0.8;
+  margin-right: 0.12em;
+  margin-top: 0.05em;
+  font-weight: bold;
+}
+
+/* Prevent drop-cap pseudo-element from EVER affecting Part & Arc Banner elements */
+.part-banner::first-letter,
+.part-banner *::first-letter,
+.part-label::first-letter,
+.part-title::first-letter,
+.arc-label::first-letter {
+  font-size: inherit !important;
+  float: none !important;
+  line-height: inherit !important;
+  margin: 0 !important;
+  font-weight: inherit !important;
+  font-family: inherit !important;
+  color: inherit !important;
+  letter-spacing: inherit !important;
+  text-transform: inherit !important;
+}
+
+/* Explicit No-DropCap override */
+.prose-reader p.no-dropcap::first-letter,
+.no-dropcap::first-letter {
+  font-size: inherit !important;
+  float: none !important;
+  line-height: inherit !important;
+  margin: 0 !important;
+  font-weight: normal !important;
+}
+
+

@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Build Output
+dist/
+
+# Local Environment Secrets
+.env
+
+# Uploads & Local DB Data
+uploads/
+data/
+
+# Logs
+*.log
