@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BookOpen, Clock, Lock, Globe, EyeOff, Edit3, Trash2, CheckCircle, Eye } from 'lucide-react';
 import { Story } from '../../types';
@@ -21,6 +21,8 @@ export const StoryCard: React.FC<StoryCardProps> = ({
   showStatusBadges = true,
   hasProgress = false,
 }) => {
+  const [imgError, setImgError] = useState(false);
+
   const getVisibilityIcon = () => {
     switch (story.visibility) {
       case 'public':
@@ -33,15 +35,17 @@ export const StoryCard: React.FC<StoryCardProps> = ({
   };
 
   const formattedCoverUrl = formatImageUrl(story.coverImage);
+  const showCoverImage = formattedCoverUrl && !imgError;
 
   return (
     <div className="group bg-paper-card rounded-2xl overflow-hidden border border-paper-border/80 shadow-book hover:shadow-book-hover transition-all duration-300 flex flex-col h-full">
       {/* Cover Image Header */}
       <div className="relative h-56 bg-stone-900 overflow-hidden">
-        {formattedCoverUrl ? (
+        {showCoverImage ? (
           <img
             src={formattedCoverUrl}
             alt={story.title}
+            onError={() => setImgError(true)}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90"
           />
         ) : (
@@ -54,7 +58,7 @@ export const StoryCard: React.FC<StoryCardProps> = ({
             </div>
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 via-transparent to-black/20" />
+        <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 via-transparent to-black/20 pointer-events-none" />
 
         {/* Status Pill Badges */}
         {showStatusBadges && (

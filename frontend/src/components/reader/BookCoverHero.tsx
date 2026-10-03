@@ -19,11 +19,13 @@ export const BookCoverHero: React.FC<BookCoverHeroProps> = ({
   onStartReading,
   onBackToLibrary,
 }) => {
+  const [imgError, setImgError] = React.useState(false);
   const sortedChapters = [...chapters].sort((a, b) => a.order - b.order);
   const targetChapterOrder = savedChapterOrder !== undefined ? savedChapterOrder : (sortedChapters.length > 0 ? sortedChapters[0].order : 1);
 
   const firstIsPrologue = sortedChapters.length > 0 && isChapterPrologue(sortedChapters[0], 0);
   const formattedCoverUrl = formatImageUrl(story.coverImage);
+  const showCoverImage = formattedCoverUrl && !imgError;
 
   return (
     <div className="min-h-screen bg-paper-bg py-8 px-4 sm:px-6 lg:px-8 flex flex-col justify-center items-center space-y-6">
@@ -45,10 +47,11 @@ export const BookCoverHero: React.FC<BookCoverHeroProps> = ({
         {/* Left Column: Book Cover Spine Effect */}
         <div className="md:col-span-5 flex justify-center">
           <div className="relative w-56 h-84 sm:w-64 sm:h-92 md:w-72 md:h-96 max-w-full rounded-2xl overflow-hidden shadow-2xl border border-stone-800/20 group">
-            {formattedCoverUrl ? (
+            {showCoverImage ? (
               <img
                 src={formattedCoverUrl}
                 alt={story.title}
+                onError={() => setImgError(true)}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
               />
             ) : (
