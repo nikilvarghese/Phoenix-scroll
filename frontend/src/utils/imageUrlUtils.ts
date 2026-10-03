@@ -1,17 +1,23 @@
 /**
  * Normalizes image URLs so uploaded cover images load seamlessly across localhost,
- * mobile network IPs (e.g. 192.168.x.x), and remote ngrok tunnels.
+ * mobile network IPs, and remote backend production hosts (e.g. Render / Vercel).
  */
+export const getApiBaseHost = (): string => {
+  const apiUrl = import.meta.env.VITE_API_URL as string;
+  if (apiUrl) {
+    return apiUrl.replace(/\/api\/?$/, '');
+  }
+  return '';
+};
+
 export const formatImageUrl = (url?: string): string => {
   if (!url || typeof url !== 'string') return '';
-  
-  // If already relative /uploads/ path
-  if (url.startsWith('/uploads/')) return url;
 
-  // If url contains localhost or IP before /uploads/, strip the domain to make it relative
   const uploadsIndex = url.indexOf('/uploads/');
   if (uploadsIndex !== -1) {
-    return url.substring(uploadsIndex);
+    const relativePath = url.substring(uploadsIndex);
+    const baseHost = getApiBaseHost();
+    return baseHost ? `${baseHost}${relativePath}` : relativePath;
   }
 
   return url;

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { Story, Chapter, User, ReadingProgress } from '../types';
 
-const API_BASE_URL = '/api';
+const API_BASE_URL = (import.meta.env.VITE_API_URL as string) || '/api';
 const TOKEN_KEY = 'phoenixscroll_token';
 const USER_KEY = 'phoenixscroll_user';
 const DEVICE_KEY = 'phoenixscroll_device_id';
