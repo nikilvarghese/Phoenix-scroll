@@ -1,6 +1,5 @@
 import { Response } from 'express';
 import Story from '../models/Story.js';
-import Chapter from '../models/Chapter.js';
 import ReadingProgress from '../models/ReadingProgress.js';
 import { AuthRequest } from '../middleware/authMiddleware.js';
 
@@ -14,7 +13,7 @@ export const getStories = async (req: AuthRequest, res: Response) => {
       filter.visibility = { $in: ['public', 'unlisted'] };
     }
 
-    const stories = await Story.find(filter).sort({ updatedAt: -1 });
+    const stories = await Story.find(filter).select('-chapters').sort({ updatedAt: -1 });
 
     const sanitizedStories = stories.map((story) => {
       const obj = story.toObject();
@@ -166,8 +165,7 @@ export const deleteStory = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ message: 'You are not authorized to delete this story.' });
     }
 
-    // Cascading deletion from MongoDB: Delete associated chapters & reading progress
-    await Chapter.deleteMany({ storyId: story._id });
+    // Cascading deletion from MongoDB: Delete associated reading progress
     await ReadingProgress.deleteMany({ storyId: story._id });
     await story.deleteOne();
 

@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import Chapter from '../models/Chapter.js';
+import mongoose from 'mongoose';
 import Story from '../models/Story.js';
 import ReadingProgress from '../models/ReadingProgress.js';
 import { AuthRequest } from '../middleware/authMiddleware.js';
@@ -7,18 +7,21 @@ import { sanitizeChapterContent, calculateWordCount, calculateReadingTime } from
 import { PDFParse } from 'pdf-parse';
 import mammoth from 'mammoth';
 
-const updateStoryStats = async (storyId: string) => {
-  const chapters = await Chapter.find({ storyId });
+const recalculateStoryStats = (story: any) => {
   let totalWordCount = 0;
-  chapters.forEach((ch) => {
+  story.chapters.forEach((ch: any) => {
     totalWordCount += ch.wordCount || 0;
   });
+  story.chapterCount = story.chapters.length;
+  story.readingTimeMinutes = calculateReadingTime(totalWordCount);
+};
 
-  const totalReadingTime = calculateReadingTime(totalWordCount);
-  await Story.findByIdAndUpdate(storyId, {
-    chapterCount: chapters.length,
-    readingTimeMinutes: totalReadingTime,
-  });
+const formatChapter = (storyId: any, ch: any) => {
+  const obj = ch.toObject ? ch.toObject() : { ...ch };
+  return {
+    ...obj,
+    storyId: storyId.toString(),
+  };
 };
 
 const formatRawTextToHtml = (rawText: string): string => {
@@ -31,8 +34,7 @@ const formatRawTextToHtml = (rawText: string): string => {
     .join('\n');
 };
 
-const checkStoryAccess = async (storyId: string, req: AuthRequest) => {
-  const story = await Story.findById(storyId);
+const checkStoryAccess = (story: any, req: AuthRequest) => {
   if (!story) {
     return { authorized: false, status: 404, message: 'Story not found.' };
   }
@@ -60,14 +62,17 @@ const checkStoryAccess = async (storyId: string, req: AuthRequest) => {
 export const getChaptersByStory = async (req: AuthRequest, res: Response) => {
   try {
     const { storyId } = req.params;
+    const story = await Story.findById(storyId);
 
-    const access = await checkStoryAccess(storyId, req);
+    const access = checkStoryAccess(story, req);
     if (!access.authorized) {
       return res.status(access.status!).json({ message: access.message });
     }
 
-    const chapters = await Chapter.find({ storyId }).sort({ order: 1 });
-    res.json(chapters);
+    const sortedChapters = [...(story!.chapters || [])].sort((a, b) => a.order - b.order);
+    const formatted = sortedChapters.map((ch) => formatChapter(story!._id, ch));
+
+    res.json(formatted);
   } catch (err: any) {
     res.status(500).json({ message: err.message || 'Failed to fetch chapters.' });
   }
@@ -76,18 +81,23 @@ export const getChaptersByStory = async (req: AuthRequest, res: Response) => {
 export const getChapterById = async (req: AuthRequest, res: Response) => {
   try {
     const { chapterId } = req.params;
-    const chapter = await Chapter.findById(chapterId);
 
-    if (!chapter) {
+    const story = await Story.findOne({ 'chapters._id': chapterId });
+    if (!story) {
       return res.status(404).json({ message: 'Chapter not found.' });
     }
 
-    const access = await checkStoryAccess(chapter.storyId.toString(), req);
+    const access = checkStoryAccess(story, req);
     if (!access.authorized) {
       return res.status(access.status!).json({ message: access.message });
     }
 
-    res.json(chapter);
+    const chapter = story.chapters.id(chapterId);
+    if (!chapter) {
+      return res.status(404).json({ message: 'Chapter not found.' });
+    }
+
+    res.json(formatChapter(story._id, chapter));
   } catch (err: any) {
     res.status(500).json({ message: err.message || 'Failed to fetch chapter.' });
   }
@@ -103,18 +113,22 @@ export const createChapter = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Story not found.' });
     }
 
-    if (story.ownerId.toString() !== req.user!.id) {
+    if (story.ownerId.toString() !== req.user!.id && req.user?.role !== 'owner') {
       return res.status(403).json({ message: 'Not authorized to add chapters to this story.' });
     }
 
-    const highestChapter = await Chapter.findOne({ storyId }).sort({ order: -1 });
-    const nextOrder = highestChapter ? highestChapter.order + 1 : 1;
+    let maxOrder = 0;
+    story.chapters.forEach((ch) => {
+      if (ch.order > maxOrder) maxOrder = ch.order;
+    });
 
+    const nextOrder = maxOrder + 1;
     const sanitizedHtml = sanitizeChapterContent(content || '');
     const wordCount = calculateWordCount(sanitizedHtml);
 
-    const chapter = await Chapter.create({
-      storyId,
+    const newChapterId = new mongoose.Types.ObjectId();
+    const newChapter: any = {
+      _id: newChapterId,
       title: title || `Chapter ${nextOrder}`,
       order: nextOrder,
       content: sanitizedHtml,
@@ -122,11 +136,14 @@ export const createChapter = async (req: AuthRequest, res: Response) => {
       illustrationUrl: illustrationUrl || '',
       wordCount,
       isPrologue: Boolean(isPrologue),
-    });
+    };
 
-    await updateStoryStats(storyId);
+    story.chapters.push(newChapter);
+    recalculateStoryStats(story);
+    await story.save();
 
-    res.status(201).json(chapter);
+    const createdChapter = story.chapters.id(newChapterId);
+    res.status(201).json(formatChapter(story._id, createdChapter));
   } catch (err: any) {
     res.status(500).json({ message: err.message || 'Failed to create chapter.' });
   }
@@ -137,14 +154,19 @@ export const updateChapter = async (req: AuthRequest, res: Response) => {
     const { chapterId } = req.params;
     const { title, content, excerpt, illustrationUrl, order, isPrologue } = req.body;
 
-    const chapter = await Chapter.findById(chapterId);
-    if (!chapter) {
+    const story = await Story.findOne({ 'chapters._id': chapterId });
+    if (!story) {
       return res.status(404).json({ message: 'Chapter not found.' });
     }
 
-    const story = await Story.findById(chapter.storyId);
-    if (!story || story.ownerId.toString() !== req.user!.id) {
+    const isAuthor = req.user?.role === 'owner' || (story.ownerId && story.ownerId.toString() === req.user!.id);
+    if (!isAuthor) {
       return res.status(403).json({ message: 'Not authorized to update this chapter.' });
+    }
+
+    const chapter = story.chapters.id(chapterId);
+    if (!chapter) {
+      return res.status(404).json({ message: 'Chapter not found.' });
     }
 
     if (title !== undefined) chapter.title = title;
@@ -159,10 +181,10 @@ export const updateChapter = async (req: AuthRequest, res: Response) => {
       chapter.wordCount = calculateWordCount(sanitizedHtml);
     }
 
-    await chapter.save();
-    await updateStoryStats(chapter.storyId.toString());
+    recalculateStoryStats(story);
+    await story.save();
 
-    res.json(chapter);
+    res.json(formatChapter(story._id, chapter));
   } catch (err: any) {
     res.status(500).json({ message: err.message || 'Failed to update chapter.' });
   }
@@ -171,10 +193,15 @@ export const updateChapter = async (req: AuthRequest, res: Response) => {
 export const reorderChapters = async (req: AuthRequest, res: Response) => {
   try {
     const { storyId } = req.params;
-    const { chapterOrders } = req.body; // Array of { chapterId, order }
+    const { chapterOrders } = req.body; // Array of { chapterId, order, title?, isPrologue? }
 
     const story = await Story.findById(storyId);
-    if (!story || story.ownerId.toString() !== req.user!.id) {
+    if (!story) {
+      return res.status(404).json({ message: 'Story not found.' });
+    }
+
+    const isAuthor = req.user?.role === 'owner' || (story.ownerId && story.ownerId.toString() === req.user!.id);
+    if (!isAuthor) {
       return res.status(403).json({ message: 'Not authorized to reorder chapters.' });
     }
 
@@ -183,18 +210,20 @@ export const reorderChapters = async (req: AuthRequest, res: Response) => {
     }
 
     for (const item of chapterOrders) {
-      const updateData: any = { order: item.order };
-      if (item.title !== undefined) {
-        updateData.title = item.title;
+      const ch = story.chapters.id(item.chapterId);
+      if (ch) {
+        if (item.order !== undefined) ch.order = item.order;
+        if (item.title !== undefined) ch.title = item.title;
+        if (item.isPrologue !== undefined) ch.isPrologue = item.isPrologue;
       }
-      if (item.isPrologue !== undefined) {
-        updateData.isPrologue = item.isPrologue;
-      }
-      await Chapter.findByIdAndUpdate(item.chapterId, updateData);
     }
 
-    const updatedChapters = await Chapter.find({ storyId }).sort({ order: 1 });
-    res.json(updatedChapters);
+    story.chapters.sort((a, b) => a.order - b.order);
+    recalculateStoryStats(story);
+    await story.save();
+
+    const formatted = story.chapters.map((ch) => formatChapter(story._id, ch));
+    res.json(formatted);
   } catch (err: any) {
     res.status(500).json({ message: err.message || 'Failed to reorder chapters.' });
   }
@@ -204,21 +233,21 @@ export const deleteChapter = async (req: AuthRequest, res: Response) => {
   try {
     const { chapterId } = req.params;
 
-    const chapter = await Chapter.findById(chapterId);
-    if (!chapter) {
+    const story = await Story.findOne({ 'chapters._id': chapterId });
+    if (!story) {
       return res.status(404).json({ message: 'Chapter not found.' });
     }
 
-    const story = await Story.findById(chapter.storyId);
-    if (!story || story.ownerId.toString() !== req.user!.id) {
+    const isAuthor = req.user?.role === 'owner' || (story.ownerId && story.ownerId.toString() === req.user!.id);
+    if (!isAuthor) {
       return res.status(403).json({ message: 'Not authorized to delete this chapter.' });
     }
 
-    const storyId = chapter.storyId.toString();
-    await ReadingProgress.deleteMany({ chapterId: chapter._id });
-    await chapter.deleteOne();
+    story.chapters.pull({ _id: chapterId });
+    await ReadingProgress.deleteMany({ chapterId });
 
-    await updateStoryStats(storyId);
+    recalculateStoryStats(story);
+    await story.save();
 
     res.json({ message: 'Chapter and associated reading progress deleted successfully.' });
   } catch (err: any) {
@@ -236,7 +265,12 @@ export const importDocument = async (req: AuthRequest, res: Response) => {
     }
 
     const story = await Story.findById(storyId);
-    if (!story || story.ownerId.toString() !== req.user!.id) {
+    if (!story) {
+      return res.status(404).json({ message: 'Story not found.' });
+    }
+
+    const isAuthor = req.user?.role === 'owner' || (story.ownerId && story.ownerId.toString() === req.user!.id);
+    if (!isAuthor) {
       return res.status(403).json({ message: 'Not authorized to import documents into this story.' });
     }
 
@@ -296,31 +330,37 @@ export const importDocument = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const highestChapter = await Chapter.findOne({ storyId }).sort({ order: -1 });
-    let currentOrder = highestChapter ? highestChapter.order + 1 : 1;
+    let maxOrder = 0;
+    story.chapters.forEach((ch) => {
+      if (ch.order > maxOrder) maxOrder = ch.order;
+    });
+
+    let currentOrder = maxOrder + 1;
 
     for (const item of parsedChapters) {
       const sanitizedHtml = sanitizeChapterContent(item.content);
       const wCount = calculateWordCount(sanitizedHtml);
       const plain = item.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
 
-      await Chapter.create({
-        storyId,
+      story.chapters.push({
+        _id: new mongoose.Types.ObjectId(),
         title: item.title,
         order: currentOrder++,
         content: sanitizedHtml,
         excerpt: plain.length > 200 ? plain.substring(0, 197) + '...' : plain,
         wordCount: wCount,
         isPrologue: item.isPrologue,
-      });
+      } as any);
     }
 
-    await updateStoryStats(storyId);
-    const updatedChapters = await Chapter.find({ storyId }).sort({ order: 1 });
+    recalculateStoryStats(story);
+    await story.save();
+
+    const formatted = story.chapters.map((ch) => formatChapter(story._id, ch));
 
     res.status(201).json({
       message: `Successfully imported ${parsedChapters.length} chapter(s) from document.`,
-      chapters: updatedChapters,
+      chapters: formatted,
     });
   } catch (err: any) {
     console.error('Import document error:', err);

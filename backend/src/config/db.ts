@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { cleanDuplicateProgress } from '../utils/cleanDuplicates.js';
+import { migrateChaptersToStories } from '../utils/migrateChapters.js';
 
 export const connectDB = async () => {
   try {
@@ -14,6 +15,9 @@ export const connectDB = async () => {
 
     // Automatically clean up any pre-existing duplicate progress entries in MongoDB
     await cleanDuplicateProgress();
+
+    // Automatically consolidate legacy standalone chapter documents into embedded story.chapters arrays
+    await migrateChaptersToStories();
   } catch (error) {
     console.error('❌ MongoDB Connection Error:', error);
     process.exit(1);
