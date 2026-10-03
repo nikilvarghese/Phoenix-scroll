@@ -58,9 +58,9 @@ export const ChapterListManager: React.FC<ChapterListManagerProps> = ({
   };
 
   return (
-    <div className="bg-paper-card p-6 rounded-2xl border border-paper-border/80 shadow-book space-y-4">
+    <div className="bg-paper-card p-6 rounded-2xl border border-paper-border/80 shadow-book space-y-4 max-h-[calc(100vh-140px)] flex flex-col">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 pb-3 border-b border-stone-200">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 pb-3 border-b border-stone-200 shrink-0">
         <div>
           <h3 className="font-playfair text-xl font-bold text-stone-900">Chapters & Outline</h3>
           <p className="text-xs text-stone-500">{chapters.length} chapters in manuscript</p>
@@ -118,7 +118,7 @@ export const ChapterListManager: React.FC<ChapterListManagerProps> = ({
           </div>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2 overflow-y-auto pr-1 max-h-[calc(100vh-230px)]">
           {chapters.map((chapter, index) => {
             const isActive = chapter._id === activeChapterId;
             const badge = getChapterNumberBadge(chapter, chapters);

@@ -98,10 +98,10 @@ export const StorySettingsForm: React.FC<StorySettingsFormProps> = ({
           <div>
             <label className="block text-[11px] font-semibold text-stone-600 mb-1">Or Direct Image URL</label>
             <input
-              type="url"
+              type="text"
               value={story.coverImage || ''}
               onChange={(e) => onChange({ coverImage: e.target.value })}
-              placeholder="https://images.unsplash.com/..."
+              placeholder="/uploads/... or https://..."
               className="w-full text-xs p-2 bg-stone-50 border border-stone-300 rounded-md focus:ring-1 focus:ring-amber-800"
             />
           </div>

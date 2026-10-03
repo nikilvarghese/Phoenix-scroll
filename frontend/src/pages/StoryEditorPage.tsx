@@ -395,7 +395,7 @@ export const StoryEditorPage: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Left Column: Chapter List & Reordering */}
-          <div className="lg:col-span-4">
+          <div className="lg:col-span-4 lg:sticky lg:top-20">
             <ChapterListManager
               chapters={chapters}
               activeChapterId={activeChapter?._id}
