@@ -179,7 +179,7 @@ export const StoryEditorPage: React.FC = () => {
     // Identify target chapters that will be included in this Arc
     const targetChapterIds = new Set<string>();
 
-    if (arcData.includePrologue && hasPrologue) {
+    if ((arcData.includePrologue || fromNum === 0) && hasPrologue) {
       targetChapterIds.add(sorted[0]._id);
     }
 
@@ -463,7 +463,7 @@ export const StoryEditorPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-paper-bg py-8 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto space-y-6">
+    <div className="min-h-screen bg-paper-bg py-5 px-3 sm:px-6 lg:px-8 w-full max-w-[98%] 2xl:max-w-[1920px] mx-auto space-y-5">
       {/* Studio Top Navigation Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-paper-border/80">
         <div className="flex items-center space-x-3">
@@ -567,9 +567,9 @@ export const StoryEditorPage: React.FC = () => {
           saving={saving}
         />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Left Column: Chapter List & Reordering */}
-          <div className="lg:col-span-4 lg:sticky lg:top-20">
+          <div className="lg:col-span-5 xl:col-span-4 2xl:col-span-3.5 lg:sticky lg:top-16">
             <ChapterListManager
               chapters={chapters}
               activeChapterId={activeChapter?._id}
@@ -587,7 +587,7 @@ export const StoryEditorPage: React.FC = () => {
           </div>
 
           {/* Right Column: Writing Editor Workspace */}
-          <div className="lg:col-span-8">
+          <div className="lg:col-span-7 xl:col-span-8 2xl:col-span-8.5 min-w-0">
             {activeChapter ? (
               <RichChapterEditor
                 chapter={activeChapter}
