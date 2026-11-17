@@ -436,11 +436,37 @@ export const ChapterListManager: React.FC<ChapterListManagerProps> = ({
                           <h4 className={`text-sm font-semibold truncate ${isActive ? 'text-amber-950 font-bold' : 'text-stone-900'}`}>
                             {chapter.title || getChapterDisplayLabel(chapter, chapters)}
                           </h4>
-                          {prologue && (
-                            <span className="text-[9px] font-bold uppercase tracking-wider text-amber-900 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300 shrink-0">
+                          {index === 0 && onTogglePrologue ? (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onTogglePrologue(chapter);
+                              }}
+                              title={prologue ? 'Marked as Prologue (Chapter 0). Click to switch to Chapter 1.' : 'Click to set as Prologue (Chapter 0)'}
+                              className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border transition shrink-0 flex items-center space-x-1 ${
+                                prologue
+                                  ? 'text-amber-950 bg-amber-100 hover:bg-amber-200 border-amber-300 shadow-2xs'
+                                  : 'text-stone-400 hover:text-amber-900 hover:bg-amber-50 border-stone-300 hover:border-amber-300'
+                              }`}
+                            >
+                              {prologue ? (
+                                <>
+                                  <CheckSquare className="w-3 h-3 text-amber-900" />
+                                  <span>Prologue</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Square className="w-3 h-3" />
+                                  <span>Set Prologue</span>
+                                </>
+                              )}
+                            </button>
+                          ) : prologue ? (
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-950 bg-amber-100 px-2 py-0.5 rounded border border-amber-300 shrink-0">
                               Prologue
                             </span>
-                          )}
+                          ) : null}
                         </div>
 
                         {/* Metadata row: Full Arc name and word count */}
@@ -463,23 +489,8 @@ export const ChapterListManager: React.FC<ChapterListManagerProps> = ({
                     </div>
                   </div>
 
-                  {/* Actions & Prologue Toggle */}
+                  {/* Actions (Move Up, Move Down, Edit, Delete) */}
                   <div className="flex items-center space-x-1 flex-shrink-0 ml-2">
-                    {index === 0 && onTogglePrologue && (
-                      <button
-                        onClick={() => onTogglePrologue(chapter)}
-                        title={prologue ? 'Unmark Prologue (returns to Chapter 1)' : 'Mark as Prologue (Chapter 0)'}
-                        className={`flex items-center space-x-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition shadow-xs ${
-                          prologue
-                            ? 'bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200'
-                            : 'bg-stone-100 text-stone-700 hover:bg-stone-200 border border-stone-300'
-                        }`}
-                      >
-                        {prologue ? <CheckSquare className="w-3.5 h-3.5 text-amber-900" /> : <Square className="w-3.5 h-3.5 text-stone-500" />}
-                        <span className="text-[11px]">Prologue</span>
-                      </button>
-                    )}
-
                     <button
                       onClick={() => onReorder(chapter._id, 'up')}
                       disabled={index === 0}

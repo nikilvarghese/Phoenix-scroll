@@ -289,13 +289,22 @@ export const ReaderPage: React.FC = () => {
   useEffect(() => {
     if (settings.layoutMode === 'book') return;
 
+    let lastScrollNavTime = 0;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isTOCOpen || isSettingsOpen || currentChapterOrder === null) return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
+      // Ignore key holding in scroll mode so chapters are not rapidly skipped
+      if (e.repeat) return;
+
+      const now = Date.now();
+      if (now - lastScrollNavTime < 250) return;
+
       if ((e.key === 'ArrowRight' || e.key === 'j') && nextChapter) {
+        lastScrollNavTime = now;
         handleSelectChapter(nextChapter.order);
       } else if ((e.key === 'ArrowLeft' || e.key === 'k') && prevChapter) {
+        lastScrollNavTime = now;
         handleSelectChapterAtEnd(prevChapter.order);
       }
     };

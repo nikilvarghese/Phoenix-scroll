@@ -110,48 +110,81 @@ export const BookReaderLayout: React.FC<BookReaderLayoutProps> = ({
 
   const isDualPage = settings.pageLayout === 'dual' || (settings.pageLayout === 'auto' && window.innerWidth >= 1024);
 
-  const handleNextPage = React.useCallback(() => {
+  const lastNavTimestampRef = React.useRef<number>(0);
+
+  const handleNextPage = React.useCallback((isRepeatKey?: boolean | React.MouseEvent) => {
+    const isRepeat = typeof isRepeatKey === 'boolean' ? isRepeatKey : false;
+    const now = Date.now();
+    if (now - lastNavTimestampRef.current < 90) return;
+    lastNavTimestampRef.current = now;
+
     const step = isDualPage ? 2 : 1;
     if (currentPage + step <= totalPages) {
       setDirection(1);
       setPage(currentPage + step);
-    } else if (nextChapter) {
+    } else if (nextChapter && !isRepeat) {
+      // Only switch chapters on deliberate single click/press, never on a held key
       onSelectChapter(nextChapter.order);
     }
   }, [currentPage, totalPages, isDualPage, nextChapter, onSelectChapter, setPage]);
 
-  const handlePrevPage = React.useCallback(() => {
+  const handlePrevPage = React.useCallback((isRepeatKey?: boolean | React.MouseEvent) => {
+    const isRepeat = typeof isRepeatKey === 'boolean' ? isRepeatKey : false;
+    const now = Date.now();
+    if (now - lastNavTimestampRef.current < 90) return;
+    lastNavTimestampRef.current = now;
+
     const step = isDualPage ? 2 : 1;
     if (currentPage - step >= 1) {
       setDirection(-1);
       setPage(Math.max(1, currentPage - step));
-    } else if (prevChapter) {
+    } else if (prevChapter && !isRepeat) {
       onSelectChapterAtEnd(prevChapter.order);
     }
   }, [currentPage, totalPages, isDualPage, prevChapter, onSelectChapterAtEnd, setPage]);
 
   useEffect(() => {
     if (registerPageNav) {
-      registerPageNav(handlePrevPage, handleNextPage);
+      registerPageNav(() => handlePrevPage(false), () => handleNextPage(false));
     }
   }, [registerPageNav, handlePrevPage, handleNextPage]);
 
-  // Keyboard navigation
+  // Keep a stable ref for navigation handlers to avoid tearing down and re-adding event listeners
+  const navHandlersRef = React.useRef({ handleNextPage, handlePrevPage });
   useEffect(() => {
+    navHandlersRef.current = { handleNextPage, handlePrevPage };
+  });
+
+  // Keyboard navigation with debounce & repeat protection against key holding
+  useEffect(() => {
+    let lastKeyNav = 0;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
-      if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
-        e.preventDefault();
-        handleNextPage();
-      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
-        e.preventDefault();
-        handlePrevPage();
+      const isNext = e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ';
+      const isPrev = e.key === 'ArrowLeft' || e.key === 'PageUp';
+
+      if (!isNext && !isPrev) return;
+
+      e.preventDefault();
+
+      const now = Date.now();
+      // When holding down key (e.repeat), throttle smoothly to 200ms to allow smooth reading without crashing state
+      const minInterval = e.repeat ? 200 : 100;
+      if (now - lastKeyNav < minInterval) return;
+      lastKeyNav = now;
+
+      if (isNext) {
+        navHandlersRef.current.handleNextPage(e.repeat);
+      } else if (isPrev) {
+        navHandlersRef.current.handlePrevPage(e.repeat);
       }
     };
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleNextPage, handlePrevPage]);
+  }, []);
 
   // Content for left & right page in dual mode
   const leftPageIndex = isDualPage ? (currentPage % 2 === 0 ? currentPage - 1 : currentPage) : currentPage;
@@ -235,18 +268,17 @@ export const BookReaderLayout: React.FC<BookReaderLayoutProps> = ({
               </div>
 
               {/* Page Body Text */}
-              <AnimatePresence mode="wait">
+              <div className="flex-1 min-h-0 overflow-hidden prose-reader font-serif leading-snug text-stone-900 text-justify flex flex-col justify-start">
                 <motion.div
                   key={`left-${leftPageIndex}`}
-                  initial={{ opacity: 0, x: direction * 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -direction * 20 }}
-                  transition={{ duration: 0.25 }}
-                  className="flex-1 min-h-0 overflow-hidden prose-reader font-serif leading-snug text-stone-900 text-justify flex flex-col justify-start"
+                  initial={{ opacity: 0.6 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.12, ease: 'easeOut' }}
+                  className="flex-1 min-h-0 flex flex-col justify-start"
                 >
                   <RichContentRenderer content={leftPageContent} isFirstPage={leftPageObj?.isChapterStartPage} />
                 </motion.div>
-              </AnimatePresence>
+              </div>
 
               {/* Left Page Turn Click Hint */}
               <div className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-60 transition-opacity p-2 bg-stone-900/10 rounded-full">
@@ -271,18 +303,17 @@ export const BookReaderLayout: React.FC<BookReaderLayoutProps> = ({
 
                 {/* Right Page Body Text */}
                 {rightPageContent ? (
-                  <AnimatePresence mode="wait">
+                  <div className="flex-1 min-h-0 overflow-hidden prose-reader font-serif leading-snug text-stone-900 text-justify flex flex-col justify-start">
                     <motion.div
                       key={`right-${rightPageIndex}`}
-                      initial={{ opacity: 0, x: direction * 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -direction * 20 }}
-                      transition={{ duration: 0.25 }}
-                      className="flex-1 min-h-0 overflow-hidden prose-reader font-serif leading-snug text-stone-900 text-justify flex flex-col justify-start"
+                      initial={{ opacity: 0.6 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.12, ease: 'easeOut' }}
+                      className="flex-1 min-h-0 flex flex-col justify-start"
                     >
                       <RichContentRenderer content={rightPageContent} isFirstPage={rightPageObj?.isChapterStartPage} />
                     </motion.div>
-                  </AnimatePresence>
+                  </div>
                 ) : (
                   <div className="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-4">
                     <span className="font-serif italic text-stone-400 text-sm">
