@@ -5,7 +5,6 @@ import mongoose from 'mongoose';
 import User from '../models/User.js';
 import Otp from '../models/Otp.js';
 import Story from '../models/Story.js';
-import Chapter from '../models/Chapter.js';
 import ReadingProgress from '../models/ReadingProgress.js';
 import { AuthRequest } from '../middleware/authMiddleware.js';
 import { sendOtpEmail } from '../utils/emailService.js';
@@ -416,7 +415,6 @@ export const deleteAccount = async (req: AuthRequest, res: Response) => {
     const userStories = await Story.find({ ownerId: userId });
     const storyIds = userStories.map((s) => s._id);
 
-    await Chapter.deleteMany({ storyId: { $in: storyIds } });
     await ReadingProgress.deleteMany({
       $or: [{ storyId: { $in: storyIds } }, { userId: userId }],
     });

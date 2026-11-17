@@ -4,7 +4,7 @@ import { Story, Chapter, ReaderSettings } from '../../types';
 import { ChevronLeft, ChevronRight, BookOpen, Clock, Layers } from 'lucide-react';
 import { RichContentRenderer } from './RichContentRenderer';
 import { getChapterDisplayLabel, getChapterHeaderSubtitle } from '../../utils/chapterUtils';
-import { usePagination } from '../../pagination';
+import { usePagination } from '../../pagination/usePagination';
 
 interface BookReaderLayoutProps {
   story: Story;

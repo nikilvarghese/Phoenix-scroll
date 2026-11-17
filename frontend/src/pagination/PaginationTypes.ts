@@ -16,13 +16,6 @@ export interface ContainerDimensions {
   height: number;
 }
 
-export interface ReadingPositionAnchor {
-  chapterId?: string;
-  chapterOrder?: number;
-  progressPercentage: number; // 0 - 100%
-  pageIndex: number;
-}
-
 export interface PaginationOptions {
   containerWidth: number;
   containerHeight: number;
