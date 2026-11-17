@@ -54,14 +54,24 @@ export const BookCoverHero: React.FC<BookCoverHeroProps> = ({
       <div className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12 items-center bg-paper-card p-6 sm:p-10 rounded-3xl border border-paper-border/80 shadow-2xl">
         {/* Left Column: Book Cover Spine Effect */}
         <div className="md:col-span-5 flex justify-center">
-          <div className="relative w-56 h-84 sm:w-64 sm:h-92 md:w-72 md:h-96 max-w-full rounded-2xl overflow-hidden shadow-2xl border border-stone-800/20 group">
+          <div className="relative w-56 sm:w-64 md:w-72 max-w-full aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl border border-stone-800/20 group bg-stone-950 flex items-center justify-center">
             {showCoverImage ? (
-              <img
-                src={formattedCoverUrl}
-                alt={story.title}
-                onError={() => setImgError(true)}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-              />
+              <>
+                {/* Ambient Blurred Artwork Backdrop */}
+                <img
+                  src={formattedCoverUrl}
+                  alt=""
+                  aria-hidden="true"
+                  className="absolute inset-0 w-full h-full object-cover blur-md scale-110 opacity-35 pointer-events-none"
+                />
+                {/* Crisp Uncropped Book Cover Artwork */}
+                <img
+                  src={formattedCoverUrl}
+                  alt={story.title}
+                  onError={() => setImgError(true)}
+                  className="relative z-10 w-full h-full object-contain group-hover:scale-102 transition-transform duration-700 drop-shadow-xl"
+                />
+              </>
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-stone-900 via-amber-950 to-stone-900 p-8 flex flex-col justify-between text-amber-100">
                 <BookOpen className="w-12 h-12 text-amber-300/40" />

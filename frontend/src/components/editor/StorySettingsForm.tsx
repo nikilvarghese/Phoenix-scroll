@@ -76,11 +76,17 @@ export const StorySettingsForm: React.FC<StorySettingsFormProps> = ({
             Book Cover Image
           </label>
 
-          <div className="relative aspect-[3/4] bg-stone-100 rounded-xl overflow-hidden border-2 border-dashed border-stone-300 flex flex-col items-center justify-center p-4 text-center hover:border-amber-800 transition">
+          <div className="relative aspect-[3/4] bg-stone-950 rounded-xl overflow-hidden border-2 border-dashed border-stone-300 flex flex-col items-center justify-center text-center hover:border-amber-800 transition">
             {formattedCoverUrl ? (
               <>
-                <img src={formattedCoverUrl} alt="Cover Preview" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition flex items-center justify-center text-white text-xs font-semibold">
+                <img
+                  src={formattedCoverUrl}
+                  alt=""
+                  aria-hidden="true"
+                  className="absolute inset-0 w-full h-full object-cover blur-sm scale-110 opacity-30 pointer-events-none"
+                />
+                <img src={formattedCoverUrl} alt="Cover Preview" className="relative z-10 w-full h-full object-contain" />
+                <div className="absolute inset-0 z-20 bg-black/40 opacity-0 hover:opacity-100 transition flex items-center justify-center text-white text-xs font-semibold">
                   Change Cover
                 </div>
               </>

@@ -40,14 +40,24 @@ export const StoryCard: React.FC<StoryCardProps> = ({
   return (
     <div className="group bg-paper-card rounded-2xl overflow-hidden border border-paper-border/80 shadow-book hover:shadow-book-hover transition-all duration-300 flex flex-col h-full">
       {/* Cover Image Header */}
-      <div className="relative h-56 bg-stone-900 overflow-hidden">
+      <div className="relative aspect-[3/4] sm:aspect-[2/3] max-h-[460px] bg-stone-950 overflow-hidden flex items-center justify-center">
         {showCoverImage ? (
-          <img
-            src={formattedCoverUrl}
-            alt={story.title}
-            onError={() => setImgError(true)}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90"
-          />
+          <>
+            {/* Ambient Blurred Artwork Backdrop */}
+            <img
+              src={formattedCoverUrl}
+              alt=""
+              aria-hidden="true"
+              className="absolute inset-0 w-full h-full object-cover blur-md scale-110 opacity-35 pointer-events-none"
+            />
+            {/* Crisp Uncropped Book Cover Artwork */}
+            <img
+              src={formattedCoverUrl}
+              alt={story.title}
+              onError={() => setImgError(true)}
+              className="relative z-10 w-full h-full object-contain group-hover:scale-102 transition-transform duration-500 drop-shadow-md"
+            />
+          </>
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-stone-800 via-amber-950 to-stone-900 flex items-center justify-center p-6 text-center">
             <div className="space-y-2">
@@ -58,7 +68,7 @@ export const StoryCard: React.FC<StoryCardProps> = ({
             </div>
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 via-transparent to-black/20 pointer-events-none" />
+        <div className="absolute inset-0 z-10 bg-gradient-to-t from-stone-950/80 via-transparent to-black/20 pointer-events-none" />
 
         {/* Status Pill Badges */}
         {showStatusBadges && (

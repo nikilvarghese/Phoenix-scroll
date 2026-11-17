@@ -1,4 +1,6 @@
 import { Response } from 'express';
+import fs from 'fs';
+import path from 'path';
 import Story from '../models/Story.js';
 import ReadingProgress from '../models/ReadingProgress.js';
 import { AuthRequest } from '../middleware/authMiddleware.js';
@@ -133,6 +135,24 @@ export const updateStory = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ message: 'You are not authorized to edit this story.' });
     }
 
+    // If the coverImage is being changed, delete the previous cover file from disk so no orphaned files remain
+    if (req.body.coverImage !== undefined && req.body.coverImage !== story.coverImage) {
+      const oldCover = story.coverImage;
+      if (oldCover && oldCover.includes('/uploads/')) {
+        try {
+          const uploadsIndex = oldCover.indexOf('/uploads/');
+          const filename = oldCover.substring(uploadsIndex + '/uploads/'.length);
+          const oldFilePath = path.join(process.cwd(), 'uploads', filename);
+          if (fs.existsSync(oldFilePath)) {
+            fs.unlinkSync(oldFilePath);
+            console.log(`🗑️ Removed previous cover image file from disk: ${filename}`);
+          }
+        } catch (cleanupErr) {
+          console.warn('Failed to delete old cover file:', cleanupErr);
+        }
+      }
+    }
+
     const fields = ['title', 'subtitle', 'description', 'authorName', 'coverImage', 'visibility', 'accessPasscode', 'genre', 'isPublished'];
     fields.forEach((field) => {
       if (req.body[field] !== undefined) {
@@ -167,6 +187,22 @@ export const deleteStory = async (req: AuthRequest, res: Response) => {
 
     // Cascading deletion from MongoDB: Delete associated reading progress
     await ReadingProgress.deleteMany({ storyId: story._id });
+
+    // If story had a cover file in /uploads/, delete it from disk as well
+    if (story.coverImage && story.coverImage.includes('/uploads/')) {
+      try {
+        const uploadsIndex = story.coverImage.indexOf('/uploads/');
+        const filename = story.coverImage.substring(uploadsIndex + '/uploads/'.length);
+        const filePath = path.join(process.cwd(), 'uploads', filename);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          console.log(`🗑️ Removed story cover image file upon deletion: ${filename}`);
+        }
+      } catch (err) {
+        console.warn('Failed to delete story cover file:', err);
+      }
+    }
+
     await story.deleteOne();
 
     console.log(`🗑️ Story deleted cleanly from database: ${story.title} (${story._id})`);
