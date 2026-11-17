@@ -8,12 +8,42 @@ import { BookOpen, Sparkles, Feather, Compass } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 
+// In-memory cache for instant zero-latency back navigation
+let inMemoryStoriesCache: Story[] | null = null;
+let inMemoryProgressCache: ReadingProgress[] | null = null;
+
 export const HomePage: React.FC = () => {
   const { user, isOwner } = useAuth();
   const navigate = useNavigate();
-  const [stories, setStories] = useState<Story[]>([]);
-  const [progressList, setProgressList] = useState<ReadingProgress[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  const [stories, setStories] = useState<Story[]>(() => {
+    if (inMemoryStoriesCache && inMemoryStoriesCache.length > 0) {
+      return inMemoryStoriesCache;
+    }
+    try {
+      const saved = sessionStorage.getItem('phoenixscroll_stories_cache');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+
+  const [progressList, setProgressList] = useState<ReadingProgress[]>(() => {
+    if (inMemoryProgressCache && inMemoryProgressCache.length > 0) {
+      return inMemoryProgressCache;
+    }
+    try {
+      const saved = sessionStorage.getItem('phoenixscroll_progress_cache');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+
+  const [loading, setLoading] = useState(() => {
+    const hasMem = inMemoryStoriesCache && inMemoryStoriesCache.length > 0;
+    const hasSession = !!sessionStorage.getItem('phoenixscroll_stories_cache');
+    return !hasMem && !hasSession;
+  });
+
   const [activeTab, setActiveTab] = useState<FilterTab>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [protectedStory, setProtectedStory] = useState<Story | null>(null);
@@ -21,12 +51,15 @@ export const HomePage: React.FC = () => {
   const [fetchError, setFetchError] = useState(false);
 
   useEffect(() => {
-    fetchStoriesAndProgress();
+    const hasCached = (inMemoryStoriesCache && inMemoryStoriesCache.length > 0) || !!sessionStorage.getItem('phoenixscroll_stories_cache');
+    fetchStoriesAndProgress(hasCached);
   }, [user]);
 
-  const fetchStoriesAndProgress = async () => {
+  const fetchStoriesAndProgress = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) {
+        setLoading(true);
+      }
       setFetchError(false);
 
       const [storiesResult, progressResult] = await Promise.allSettled([
@@ -39,7 +72,9 @@ export const HomePage: React.FC = () => {
 
       if (storiesResult.status === 'rejected' && fetchedStories.length === 0) {
         console.error('Failed to fetch stories:', storiesResult.reason);
-        setFetchError(true);
+        if (!inMemoryStoriesCache || inMemoryStoriesCache.length === 0) {
+          setFetchError(true);
+        }
       }
 
       // Collect all local storage progress
@@ -121,11 +156,21 @@ export const HomePage: React.FC = () => {
         });
       }
 
-      setStories(Array.from(storiesMap.values()));
+      const finalStories = Array.from(storiesMap.values());
+      inMemoryStoriesCache = finalStories;
+      inMemoryProgressCache = mergedProgress;
+      try {
+        sessionStorage.setItem('phoenixscroll_stories_cache', JSON.stringify(finalStories));
+        sessionStorage.setItem('phoenixscroll_progress_cache', JSON.stringify(mergedProgress));
+      } catch {}
+
+      setStories(finalStories);
       setProgressList(mergedProgress);
     } catch (err) {
       console.error('Failed to load stories or progress:', err);
-      setFetchError(true);
+      if (!inMemoryStoriesCache || inMemoryStoriesCache.length === 0) {
+        setFetchError(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -292,7 +337,7 @@ export const HomePage: React.FC = () => {
               </p>
             </div>
             <button
-              onClick={fetchStoriesAndProgress}
+              onClick={() => fetchStoriesAndProgress(false)}
               className="inline-flex items-center space-x-2 px-5 py-2.5 bg-amber-900 hover:bg-amber-950 text-white rounded-xl text-xs font-semibold shadow-xs transition"
             >
               <span>Retry Connection</span>

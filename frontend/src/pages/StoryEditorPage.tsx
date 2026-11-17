@@ -9,7 +9,7 @@ import { PublishModal } from '../components/editor/PublishModal';
 import { DeleteConfirmModal } from '../components/dashboard/DeleteConfirmModal';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { ArrowLeft, Settings, BookOpen, Eye, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Settings, BookOpen, Eye, CheckCircle2, Globe, AlertTriangle } from 'lucide-react';
 import { isChapterPrologue, isDefaultChapterTitle, getChapterNumberBadge } from '../utils/chapterUtils';
 
 export const StoryEditorPage: React.FC = () => {
@@ -37,6 +37,7 @@ export const StoryEditorPage: React.FC = () => {
   const [chapterToDelete, setChapterToDelete] = useState<Chapter | null>(null);
   const [deletingChapter, setDeletingChapter] = useState(false);
   const [publishedModalStory, setPublishedModalStory] = useState<Story | null>(null);
+  const [showUnpublishModal, setShowUnpublishModal] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -93,20 +94,37 @@ export const StoryEditorPage: React.FC = () => {
     }
   };
 
-  // Toggle Publication
-  const handleTogglePublish = async () => {
+  // Explicit Publish Story
+  const handlePublishStory = async () => {
     if (!story._id) return;
     try {
       setSaving(true);
-      const updated = await storyService.togglePublish(story._id);
+      const updated = await storyService.publishStory(story._id);
       setStory(updated);
-      if (updated.isPublished) {
-        setPublishedModalStory(updated as Story);
-      } else {
-        showSuccess('Story unpublished.');
-      }
+      setPublishedModalStory(updated as Story);
+      showSuccess('Story is published live to readers!');
+      // Invalidate stories cache so homepage updates immediately
+      sessionStorage.removeItem('phoenixscroll_stories_cache');
     } catch (err) {
-      showError('Failed to update publication status.');
+      showError('Failed to publish story.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Explicit Unpublish Story (requires confirmation modal)
+  const handleUnpublishStory = async () => {
+    if (!story._id) return;
+    try {
+      setSaving(true);
+      const updated = await storyService.unpublishStory(story._id);
+      setStory(updated);
+      setShowUnpublishModal(false);
+      showSuccess('Story unpublished and returned to draft.');
+      // Invalidate stories cache so homepage updates immediately
+      sessionStorage.removeItem('phoenixscroll_stories_cache');
+    } catch (err) {
+      showError('Failed to unpublish story.');
     } finally {
       setSaving(false);
     }
@@ -121,9 +139,13 @@ export const StoryEditorPage: React.FC = () => {
 
     try {
       const nextOrder = chapters.length + 1;
+      const lastChapter = chapters.length > 0 ? chapters[chapters.length - 1] : null;
+      const defaultArc = lastChapter?.arc || '';
+
       const created = await chapterService.createChapter(story._id, {
         title: `Chapter ${nextOrder}`,
         content: '<p>Write your chapter text here...</p>',
+        arc: defaultArc,
       });
 
       setChapters((prev) => [...prev, created]);
@@ -132,6 +154,58 @@ export const StoryEditorPage: React.FC = () => {
       showSuccess('New chapter added.');
     } catch (err) {
       showError('Failed to add chapter.');
+    }
+  };
+
+  // Update Arc for a single chapter
+  const handleUpdateChapterArc = async (chapterId: string, arc: string) => {
+    if (!story._id) return;
+    try {
+      const updated = await chapterService.updateChapter(chapterId, { arc });
+      setChapters((prev) => prev.map((c) => (c._id === chapterId ? updated : c)));
+      if (activeChapter?._id === chapterId) {
+        setActiveChapter(updated);
+      }
+      showSuccess('Chapter arc updated.');
+    } catch (err) {
+      showError('Failed to update chapter arc.');
+    }
+  };
+
+  // Split Arc: Assign arc from chapter at fromIndex onwards
+  const handleSplitArc = async (fromIndex: number, newArcName: string) => {
+    if (!story._id || !newArcName.trim()) return;
+
+    const trimmedArc = newArcName.trim();
+    const updatedChapters = chapters.map((ch, idx) => {
+      if (idx >= fromIndex) {
+        return { ...ch, arc: trimmedArc };
+      }
+      return ch;
+    });
+
+    setChapters(updatedChapters);
+    if (activeChapter) {
+      const activeIdx = chapters.findIndex((c) => c._id === activeChapter._id);
+      if (activeIdx >= fromIndex) {
+        setActiveChapter({ ...activeChapter, arc: trimmedArc });
+      }
+    }
+
+    const chapterOrders = updatedChapters.map((ch, idx) => ({
+      chapterId: ch._id,
+      order: idx + 1,
+      title: ch.title,
+      isPrologue: ch.isPrologue,
+      arc: ch.arc,
+    }));
+
+    try {
+      const saved = await chapterService.reorderChapters(story._id, chapterOrders);
+      setChapters(saved);
+      showSuccess(`Assigned "${trimmedArc}" from Chapter ${fromIndex + 1} onwards.`);
+    } catch (err) {
+      showError('Failed to save arc split.');
     }
   };
 
@@ -210,6 +284,7 @@ export const StoryEditorPage: React.FC = () => {
       order: idx + 1,
       title: ch.title,
       isPrologue: ch.isPrologue,
+      arc: ch.arc,
     }));
 
     try {
@@ -358,7 +433,7 @@ export const StoryEditorPage: React.FC = () => {
           </div>
 
           {story._id && (
-            <>
+            <div className="flex items-center space-x-2">
               <Link
                 to={`/read/${story._id}`}
                 className="p-2.5 text-stone-700 hover:bg-stone-100 rounded-lg transition"
@@ -367,19 +442,33 @@ export const StoryEditorPage: React.FC = () => {
                 <Eye className="w-4 h-4" />
               </Link>
 
-              <button
-                onClick={handleTogglePublish}
-                disabled={saving}
-                className={`flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold transition shadow-xs ${
-                  story.isPublished
-                    ? 'bg-emerald-800 hover:bg-emerald-900 text-white'
-                    : 'bg-amber-900 hover:bg-amber-950 text-white'
-                }`}
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>{story.isPublished ? 'Published' : 'Publish Story'}</span>
-              </button>
-            </>
+              {story.isPublished ? (
+                <div className="inline-flex items-center rounded-xl border border-emerald-300 bg-emerald-50/90 shadow-xs overflow-hidden">
+                  <div className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-bold text-emerald-800">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Published</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowUnpublishModal(true)}
+                    disabled={saving}
+                    className="px-2.5 py-1.5 text-[11px] font-semibold text-stone-500 hover:text-red-700 hover:bg-red-50 border-l border-emerald-200 transition"
+                    title="Unpublish story to draft"
+                  >
+                    Unpublish
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handlePublishStory}
+                  disabled={saving}
+                  className="flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-bold transition shadow-xs bg-amber-900 hover:bg-amber-950 text-white"
+                >
+                  <Globe className="w-4 h-4" />
+                  <span>Publish Story</span>
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>
@@ -407,6 +496,8 @@ export const StoryEditorPage: React.FC = () => {
               onTogglePrologue={handleTogglePrologue}
               onImportDocument={handleImportDocument}
               importingDocument={importingDocument}
+              onUpdateChapterArc={handleUpdateChapterArc}
+              onSplitArc={handleSplitArc}
             />
           </div>
 
@@ -452,6 +543,38 @@ export const StoryEditorPage: React.FC = () => {
           story={publishedModalStory}
           onClose={() => setPublishedModalStory(null)}
         />
+      )}
+
+      {/* Unpublish Confirmation Modal */}
+      {showUnpublishModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-paper-card max-w-md w-full p-6 rounded-2xl border border-paper-border shadow-2xl space-y-4">
+            <div className="flex items-center space-x-3 text-amber-900">
+              <AlertTriangle className="w-6 h-6 text-amber-600" />
+              <h3 className="font-playfair text-xl font-bold text-stone-900">Unpublish Manuscript?</h3>
+            </div>
+            <p className="text-sm text-stone-600 leading-relaxed font-sans">
+              Unpublishing <strong>"{story.title}"</strong> will return it to a private draft. Readers will no longer see it in the library until you publish it again. All written chapters and settings remain completely intact.
+            </p>
+            <div className="flex items-center justify-end space-x-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowUnpublishModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-stone-700 bg-stone-100 hover:bg-stone-200 transition"
+              >
+                Keep Published
+              </button>
+              <button
+                type="button"
+                onClick={handleUnpublishStory}
+                disabled={saving}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-red-700 hover:bg-red-800 shadow-xs transition"
+              >
+                {saving ? 'Unpublishing...' : 'Unpublish to Draft'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

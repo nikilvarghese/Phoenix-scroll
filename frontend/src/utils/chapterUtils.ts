@@ -45,11 +45,53 @@ export const getChapterHeaderSubtitle = (ch: Chapter, allChapters: Chapter[]): s
   const sorted = [...allChapters].sort((a, b) => a.order - b.order);
   const firstIsPrologue = sorted.length > 0 && isChapterPrologue(sorted[0], 0);
 
+  const arcPrefix = ch.arc && ch.arc.trim() ? `${ch.arc.trim()} • ` : '';
+
   if (sorted.length > 0 && sorted[0]._id === ch._id && firstIsPrologue) {
-    return 'Prologue';
+    return `${arcPrefix}Prologue`;
   }
 
   const numNumbered = firstIsPrologue ? sorted.length - 1 : sorted.length;
   const badge = getChapterNumberBadge(ch, sorted);
-  return `Chapter ${badge} of ${numNumbered}`;
+  return `${arcPrefix}Chapter ${badge} of ${numNumbered}`;
 };
+
+export const getUniqueArcs = (chapters: Chapter[]): string[] => {
+  const arcs: string[] = [];
+  const seen = new Set<string>();
+
+  chapters.forEach((ch) => {
+    if (ch.arc && ch.arc.trim()) {
+      const trimmed = ch.arc.trim();
+      if (!seen.has(trimmed)) {
+        seen.add(trimmed);
+        arcs.push(trimmed);
+      }
+    }
+  });
+
+  return arcs;
+};
+
+export const getArcChapterRange = (arcName: string, allChapters: Chapter[]): string => {
+  const arcChapters = allChapters.filter((c) => c.arc && c.arc.trim() === arcName.trim());
+  if (arcChapters.length === 0) return '';
+
+  const labels = arcChapters.map((c) => getChapterNumberBadge(c, allChapters));
+  const hasP = labels.includes('P');
+  const numericLabels = labels.filter((l) => l !== 'P').map((l) => parseInt(l, 10)).filter((n) => !isNaN(n));
+
+  if (numericLabels.length === 0) {
+    return hasP ? 'Prologue' : '';
+  }
+
+  const min = Math.min(...numericLabels);
+  const max = Math.max(...numericLabels);
+
+  if (hasP) {
+    return min === max ? `Prologue + Ch ${min}` : `Prologue + Ch ${min}–${max}`;
+  }
+
+  return min === max ? `Ch ${min}` : `Ch ${min}–${max}`;
+};
+

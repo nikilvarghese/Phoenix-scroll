@@ -32,7 +32,7 @@ export const getStories = async (req: AuthRequest, res: Response) => {
 export const getStoryById = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const story = await Story.findById(id);
+    const story = await Story.findById(id).select('-chapters');
 
     if (!story) {
       return res.status(404).json({ message: 'Story not found.' });
@@ -191,7 +191,12 @@ export const togglePublishStory = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ message: 'You are not authorized to modify this story status.' });
     }
 
-    story.isPublished = !story.isPublished;
+    if (typeof req.body?.isPublished === 'boolean') {
+      story.isPublished = req.body.isPublished;
+    } else {
+      story.isPublished = !story.isPublished;
+    }
+
     if (story.isPublished && !story.publishedAt) {
       story.publishedAt = new Date();
     }

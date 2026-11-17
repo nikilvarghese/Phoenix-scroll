@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Story, Chapter } from '../../types';
-import { BookOpen, Clock, Play, ChevronRight, ListOrdered, ArrowLeft } from 'lucide-react';
-import { getChapterDisplayLabel, getChapterNumberBadge, isChapterPrologue } from '../../utils/chapterUtils';
+import { BookOpen, Clock, Play, ChevronRight, ListOrdered, ArrowLeft, Layers, Bookmark } from 'lucide-react';
+import { getChapterDisplayLabel, getChapterNumberBadge, isChapterPrologue, getUniqueArcs, getArcChapterRange } from '../../utils/chapterUtils';
 import { formatImageUrl } from '../../utils/imageUrlUtils';
 
 interface BookCoverHeroProps {
@@ -26,6 +26,14 @@ export const BookCoverHero: React.FC<BookCoverHeroProps> = ({
   const firstIsPrologue = sortedChapters.length > 0 && isChapterPrologue(sortedChapters[0], 0);
   const formattedCoverUrl = formatImageUrl(story.coverImage);
   const showCoverImage = formattedCoverUrl && !imgError;
+
+  const uniqueArcs = getUniqueArcs(sortedChapters);
+  const [selectedArc, setSelectedArc] = useState<string>('all');
+
+  // Filter chapters by selected Arc
+  const displayedChapters = selectedArc === 'all'
+    ? sortedChapters
+    : sortedChapters.filter((ch) => ch.arc && ch.arc.trim() === selectedArc.trim());
 
   return (
     <div className="min-h-screen bg-paper-bg py-8 px-4 sm:px-6 lg:px-8 flex flex-col justify-center items-center space-y-6">
@@ -150,9 +158,63 @@ export const BookCoverHero: React.FC<BookCoverHeroProps> = ({
             </div>
           </div>
 
+          {/* Arc Selector Tabs */}
+          {uniqueArcs.length > 0 && (
+            <div className="space-y-2 pb-2">
+              <div className="flex items-center space-x-2 text-xs font-semibold text-stone-500 uppercase tracking-wider">
+                <Layers className="w-3.5 h-3.5 text-amber-800" />
+                <span>Story Arcs & Volumes</span>
+              </div>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setSelectedArc('all')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 ${
+                    selectedArc === 'all'
+                      ? 'bg-amber-900 text-white shadow-md'
+                      : 'bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200'
+                  }`}
+                >
+                  <span>All Sections</span>
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${selectedArc === 'all' ? 'bg-amber-800 text-amber-100' : 'bg-stone-200 text-stone-600'}`}>
+                    {sortedChapters.length}
+                  </span>
+                </button>
+
+                {uniqueArcs.map((arc) => {
+                  const range = getArcChapterRange(arc, sortedChapters);
+                  const isSelected = selectedArc.toLowerCase() === arc.toLowerCase();
+                  const count = sortedChapters.filter((c) => c.arc && c.arc.trim() === arc.trim()).length;
+
+                  return (
+                    <button
+                      key={arc}
+                      type="button"
+                      onClick={() => setSelectedArc(arc)}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-2 ${
+                        isSelected
+                          ? 'bg-amber-900 text-white shadow-md'
+                          : 'bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200'
+                      }`}
+                    >
+                      <span>{arc}</span>
+                      {range && (
+                        <span className={`text-[10px] font-normal px-2 py-0.5 rounded-md ${
+                          isSelected ? 'bg-amber-950/60 text-amber-200' : 'bg-stone-200/80 text-stone-600'
+                        }`}>
+                          {range}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Full Table of Contents Grid - No tiny scrollboxes */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-            {sortedChapters.map((ch) => {
+            {displayedChapters.map((ch) => {
               const label = getChapterDisplayLabel(ch, sortedChapters);
               const badge = getChapterNumberBadge(ch, sortedChapters);
               const isPrologue = badge === 'P';
@@ -182,6 +244,11 @@ export const BookCoverHero: React.FC<BookCoverHeroProps> = ({
                         <span className={`text-xs font-bold uppercase tracking-wider ${isPrologue ? 'text-amber-900' : 'text-stone-500'}`}>
                           {label}
                         </span>
+                        {ch.arc && selectedArc === 'all' && (
+                          <span className="text-[10px] font-semibold text-amber-800/90 bg-amber-100/80 px-2 py-0.5 rounded border border-amber-200/60 truncate max-w-[140px]">
+                            {ch.arc}
+                          </span>
+                        )}
                       </div>
                       <h4 className="font-playfair text-sm sm:text-base font-bold text-stone-900 group-hover:text-amber-950 truncate">
                         {ch.title}

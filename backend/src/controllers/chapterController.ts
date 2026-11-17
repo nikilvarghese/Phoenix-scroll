@@ -106,7 +106,7 @@ export const getChapterById = async (req: AuthRequest, res: Response) => {
 export const createChapter = async (req: AuthRequest, res: Response) => {
   try {
     const { storyId } = req.params;
-    const { title, content, excerpt, illustrationUrl, isPrologue } = req.body;
+    const { title, content, excerpt, illustrationUrl, isPrologue, arc, arcNumber } = req.body;
 
     const story = await Story.findById(storyId);
     if (!story) {
@@ -136,6 +136,8 @@ export const createChapter = async (req: AuthRequest, res: Response) => {
       illustrationUrl: illustrationUrl || '',
       wordCount,
       isPrologue: Boolean(isPrologue),
+      arc: arc !== undefined ? arc : '',
+      arcNumber: arcNumber !== undefined ? arcNumber : undefined,
     };
 
     story.chapters.push(newChapter);
@@ -152,7 +154,7 @@ export const createChapter = async (req: AuthRequest, res: Response) => {
 export const updateChapter = async (req: AuthRequest, res: Response) => {
   try {
     const { chapterId } = req.params;
-    const { title, content, excerpt, illustrationUrl, order, isPrologue } = req.body;
+    const { title, content, excerpt, illustrationUrl, order, isPrologue, arc, arcNumber } = req.body;
 
     const story = await Story.findOne({ 'chapters._id': chapterId });
     if (!story) {
@@ -174,6 +176,8 @@ export const updateChapter = async (req: AuthRequest, res: Response) => {
     if (illustrationUrl !== undefined) chapter.illustrationUrl = illustrationUrl;
     if (order !== undefined) chapter.order = order;
     if (isPrologue !== undefined) chapter.isPrologue = Boolean(isPrologue);
+    if (arc !== undefined) (chapter as any).arc = arc;
+    if (arcNumber !== undefined) (chapter as any).arcNumber = arcNumber;
 
     if (content !== undefined) {
       const sanitizedHtml = sanitizeChapterContent(content);
@@ -193,7 +197,7 @@ export const updateChapter = async (req: AuthRequest, res: Response) => {
 export const reorderChapters = async (req: AuthRequest, res: Response) => {
   try {
     const { storyId } = req.params;
-    const { chapterOrders } = req.body; // Array of { chapterId, order, title?, isPrologue? }
+    const { chapterOrders } = req.body; // Array of { chapterId, order, title?, isPrologue?, arc?, arcNumber? }
 
     const story = await Story.findById(storyId);
     if (!story) {
@@ -215,6 +219,8 @@ export const reorderChapters = async (req: AuthRequest, res: Response) => {
         if (item.order !== undefined) ch.order = item.order;
         if (item.title !== undefined) ch.title = item.title;
         if (item.isPrologue !== undefined) ch.isPrologue = item.isPrologue;
+        if (item.arc !== undefined) (ch as any).arc = item.arc;
+        if (item.arcNumber !== undefined) (ch as any).arcNumber = item.arcNumber;
       }
     }
 
@@ -296,7 +302,10 @@ export const importDocument = async (req: AuthRequest, res: Response) => {
     // Split text into chapters using PROLOGUE and CHAPTER markers
     const chapterMatches = [...extractedText.matchAll(/(PROLOGUE|CHAPTER\s+\d+|Chapter\s+\d+)/gi)];
 
-    const parsedChapters: { title: string; content: string; isPrologue: boolean }[] = [];
+    // Look for ARC / ACT / BOOK headings throughout the text
+    const arcMatches = [...extractedText.matchAll(/(?:^|\n)\s*(ARC\s+\d+[^\r\n]*|ACT\s+\d+[^\r\n]*|BOOK\s+\d+[^\r\n]*)/gi)];
+
+    const parsedChapters: { title: string; content: string; isPrologue: boolean; arc?: string }[] = [];
 
     if (chapterMatches.length > 0) {
       chapterMatches.forEach((m, idx) => {
@@ -309,6 +318,14 @@ export const importDocument = async (req: AuthRequest, res: Response) => {
 
         const isPrologue = headerLine.toUpperCase().includes('PROLOGUE');
 
+        // Check if there is an Arc header preceding this chapter
+        let associatedArc = '';
+        for (const arcMatch of arcMatches) {
+          if (arcMatch.index! <= start) {
+            associatedArc = arcMatch[1].trim();
+          }
+        }
+
         let title = headerLine;
         const dashMatch = headerLine.match(/—|–|-/);
         if (dashMatch && dashMatch.index) {
@@ -319,6 +336,7 @@ export const importDocument = async (req: AuthRequest, res: Response) => {
           title: title || headerLine,
           content: formatRawTextToHtml(bodyText),
           isPrologue,
+          arc: associatedArc,
         });
       });
     } else {
@@ -350,6 +368,7 @@ export const importDocument = async (req: AuthRequest, res: Response) => {
         excerpt: plain.length > 200 ? plain.substring(0, 197) + '...' : plain,
         wordCount: wCount,
         isPrologue: item.isPrologue,
+        arc: item.arc || '',
       } as any);
     }
 

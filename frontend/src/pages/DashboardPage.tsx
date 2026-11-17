@@ -46,6 +46,7 @@ export const DashboardPage: React.FC = () => {
     try {
       const updated = await storyService.togglePublish(story._id);
       setStories((prev) => prev.map((s) => (s._id === updated._id ? updated : s)));
+      sessionStorage.removeItem('phoenixscroll_stories_cache');
       showSuccess(`Story ${updated.isPublished ? 'published' : 'unpublished'} successfully.`);
     } catch (err) {
       showError('Failed to update publication state.');
@@ -59,6 +60,7 @@ export const DashboardPage: React.FC = () => {
       await storyService.deleteStory(storyToDelete._id);
       setStories((prev) => prev.filter((s) => s._id !== storyToDelete._id));
       setStoryToDelete(null);
+      sessionStorage.removeItem('phoenixscroll_stories_cache');
       showSuccess('Story deleted successfully.');
     } catch (err) {
       showError('Failed to delete story.');

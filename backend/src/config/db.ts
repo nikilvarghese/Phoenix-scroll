@@ -2,7 +2,14 @@ import mongoose from 'mongoose';
 import { cleanDuplicateProgress } from '../utils/cleanDuplicates.js';
 import { migrateChaptersToStories } from '../utils/migrateChapters.js';
 
+let isMigrationInitialized = false;
+
 export const connectDB = async () => {
+  // If already connected, return immediately without redundant reconnects or migrations
+  if (mongoose.connection.readyState === 1) {
+    return;
+  }
+
   try {
     const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/storybook';
 
@@ -13,11 +20,12 @@ export const connectDB = async () => {
 
     console.log(`✅ Connected to MongoDB successfully (Database: 'storybook').`);
 
-    // Automatically clean up any pre-existing duplicate progress entries in MongoDB
-    await cleanDuplicateProgress();
-
-    // Automatically consolidate legacy standalone chapter documents into embedded story.chapters arrays
-    await migrateChaptersToStories();
+    // Run cleanups & migrations ONLY ONCE on server startup in background
+    if (!isMigrationInitialized) {
+      isMigrationInitialized = true;
+      cleanDuplicateProgress().catch((err) => console.error('Clean duplicates error:', err));
+      migrateChaptersToStories().catch((err) => console.error('Migrate chapters error:', err));
+    }
   } catch (error) {
     console.error('❌ MongoDB Connection Error:', error);
     process.exit(1);
@@ -27,3 +35,4 @@ export const connectDB = async () => {
 export const closeDB = async () => {
   await mongoose.disconnect();
 };
+

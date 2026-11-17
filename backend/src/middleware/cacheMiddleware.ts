@@ -1,11 +1,16 @@
 import { Request, Response, NextFunction } from 'express';
 
 // Middleware to set CDN & browser cache control headers for public endpoints
-export const cacheControl = (durationSeconds: number = 300) => {
+export const cacheControl = (durationSeconds: number = 60) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    // Only cache GET requests
+    // Authenticated users should always get fresh uncached responses
+    if (req.headers.authorization) {
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+      return next();
+    }
+    // Only cache unauthenticated GET requests
     if (req.method === 'GET') {
-      res.setHeader('Cache-Control', `public, max-age=${durationSeconds}, s-maxage=${durationSeconds * 2}, stale-while-revalidate=60`);
+      res.setHeader('Cache-Control', `public, max-age=${durationSeconds}, s-maxage=${durationSeconds}, stale-while-revalidate=30`);
     } else {
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     }

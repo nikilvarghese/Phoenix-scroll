@@ -35,6 +35,8 @@ export interface Chapter {
   illustrationUrl?: string;
   wordCount: number;
   isPrologue?: boolean;
+  arc?: string;
+  arcNumber?: number;
   createdAt: string;
   updatedAt: string;
 }

@@ -1,7 +1,7 @@
-import React from 'react';
-import { X, BookOpen, Clock, Check } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, BookOpen, Clock, Check, Layers } from 'lucide-react';
 import { Story, Chapter } from '../../types';
-import { getChapterNumberBadge } from '../../utils/chapterUtils';
+import { getChapterNumberBadge, getUniqueArcs, getArcChapterRange } from '../../utils/chapterUtils';
 
 interface TableOfContentsDrawerProps {
   isOpen: boolean;
@@ -20,7 +20,13 @@ export const TableOfContentsDrawer: React.FC<TableOfContentsDrawerProps> = ({
   onSelectChapter,
   onClose,
 }) => {
+  const [selectedArc, setSelectedArc] = useState<string>('all');
   if (!isOpen) return null;
+
+  const uniqueArcs = getUniqueArcs(chapters);
+  const displayedChapters = selectedArc === 'all'
+    ? chapters
+    : chapters.filter((c) => c.arc && c.arc.trim() === selectedArc.trim());
 
   return (
     <div className="fixed inset-0 z-50 flex">
@@ -50,9 +56,46 @@ export const TableOfContentsDrawer: React.FC<TableOfContentsDrawerProps> = ({
           <p className="text-xs text-amber-400/90 font-serif italic">By {story.authorName}</p>
         </div>
 
+        {/* Arc Filter Tabs (if arcs exist) */}
+        {uniqueArcs.length > 0 && (
+          <div className="p-3 border-b border-stone-800 bg-stone-950/40">
+            <div className="flex items-center space-x-1.5 text-[10px] uppercase font-bold tracking-wider text-amber-400/80 mb-2">
+              <Layers className="w-3 h-3 text-amber-400" />
+              <span>Filter by Arc</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() => setSelectedArc('all')}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
+                  selectedArc === 'all'
+                    ? 'bg-amber-800 text-white shadow-xs'
+                    : 'bg-stone-800 text-stone-400 hover:text-stone-200'
+                }`}
+              >
+                All ({chapters.length})
+              </button>
+              {uniqueArcs.map((arc) => (
+                <button
+                  key={arc}
+                  type="button"
+                  onClick={() => setSelectedArc(arc)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
+                    selectedArc === arc
+                      ? 'bg-amber-800 text-white shadow-xs'
+                      : 'bg-stone-800 text-stone-400 hover:text-stone-200'
+                  }`}
+                >
+                  {arc}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Chapter List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
-          {chapters.map((ch) => {
+          {displayedChapters.map((ch) => {
             const isCurrent = ch._id === currentChapterId;
             const badge = getChapterNumberBadge(ch, chapters);
 
@@ -81,10 +124,15 @@ export const TableOfContentsDrawer: React.FC<TableOfContentsDrawerProps> = ({
                     <h5 className={`text-xs font-semibold font-serif truncate ${isCurrent ? 'text-white' : ''}`}>
                       {ch.title}
                     </h5>
-                    <span className="text-[10px] text-stone-400 font-sans flex items-center space-x-1">
-                      <Clock className="w-3 h-3 text-stone-500" />
-                      <span>{ch.wordCount || 0} words</span>
-                    </span>
+                    <div className="flex items-center space-x-2 text-[10px] text-stone-400 font-sans mt-0.5">
+                      {ch.arc && selectedArc === 'all' && (
+                        <span className="text-amber-400 font-medium">{ch.arc} •</span>
+                      )}
+                      <span className="flex items-center space-x-1">
+                        <Clock className="w-3 h-3 text-stone-500" />
+                        <span>{ch.wordCount || 0} words</span>
+                      </span>
+                    </div>
                   </div>
                 </div>
 

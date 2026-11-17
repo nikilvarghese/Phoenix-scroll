@@ -41,6 +41,8 @@ export const migrateChaptersToStories = async () => {
             illustrationUrl: ch.illustrationUrl || '',
             wordCount: ch.wordCount || 0,
             isPrologue: Boolean(ch.isPrologue),
+            arc: ch.arc || '',
+            arcNumber: ch.arcNumber,
             createdAt: ch.createdAt || new Date(),
             updatedAt: ch.updatedAt || new Date(),
           } as any);

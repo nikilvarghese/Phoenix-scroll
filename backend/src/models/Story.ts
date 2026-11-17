@@ -9,6 +9,8 @@ export interface IEmbeddedChapter {
   illustrationUrl?: string;
   wordCount: number;
   isPrologue?: boolean;
+  arc?: string;
+  arcNumber?: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -41,6 +43,8 @@ export const ChapterSchema: Schema = new Schema(
     illustrationUrl: { type: String, default: '' },
     wordCount: { type: Number, default: 0 },
     isPrologue: { type: Boolean, default: false },
+    arc: { type: String, trim: true, default: '' },
+    arcNumber: { type: Number },
   },
   { timestamps: true }
 );

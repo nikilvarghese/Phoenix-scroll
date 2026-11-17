@@ -166,8 +166,16 @@ export const storyService = {
     const res = await api.delete<{ message: string }>(`/stories/${id}`);
     return res.data;
   },
-  togglePublish: async (id: string) => {
-    const res = await api.patch<Story>(`/stories/${id}/publish`);
+  togglePublish: async (id: string, isPublished?: boolean) => {
+    const res = await api.patch<Story>(`/stories/${id}/publish`, { isPublished });
+    return res.data;
+  },
+  publishStory: async (id: string) => {
+    const res = await api.patch<Story>(`/stories/${id}/publish`, { isPublished: true });
+    return res.data;
+  },
+  unpublishStory: async (id: string) => {
+    const res = await api.patch<Story>(`/stories/${id}/publish`, { isPublished: false });
     return res.data;
   },
   uploadImage: async (file: File) => {
@@ -197,7 +205,7 @@ export const chapterService = {
     const res = await api.put<Chapter>(`/chapters/${chapterId}`, data);
     return res.data;
   },
-  reorderChapters: async (storyId: string, chapterOrders: { chapterId: string; order: number; title?: string; isPrologue?: boolean }[]) => {
+  reorderChapters: async (storyId: string, chapterOrders: { chapterId: string; order: number; title?: string; isPrologue?: boolean; arc?: string; arcNumber?: number }[]) => {
     const res = await api.post<Chapter[]>(`/chapters/story/${storyId}/reorder`, { chapterOrders });
     return res.data;
   },
