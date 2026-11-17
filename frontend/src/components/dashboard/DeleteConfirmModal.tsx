@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { AlertTriangle, Trash2 } from 'lucide-react';
 
 interface DeleteConfirmModalProps {
@@ -16,9 +17,9 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
   onCancel,
   loading,
 }) => {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 backdrop-blur-xs p-4">
-      <div className="bg-paper-bg rounded-2xl p-5 sm:p-6 max-w-md w-full border border-paper-border shadow-2xl space-y-5 overflow-y-auto max-h-[90vh]">
+  const modalContent = (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-xs p-4">
+      <div className="bg-paper-card rounded-2xl p-5 sm:p-6 max-w-md w-full border border-paper-border shadow-2xl space-y-5 overflow-y-auto max-h-[90vh]">
         <div className="flex items-center space-x-3 text-red-700">
           <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
             <AlertTriangle className="w-5 h-5 text-red-600" />
@@ -50,4 +51,6 @@ export const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 };

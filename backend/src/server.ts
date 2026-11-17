@@ -99,7 +99,16 @@ app.post('/api/uploads/image', authenticate, requireOwner, (req, res) => {
       return res.status(400).json({ message: 'No image file uploaded.' });
     }
     const fileUrl = `/uploads/${req.file.filename}`;
-    res.json({ url: fileUrl, filename: req.file.filename });
+    let dataUrl = fileUrl;
+    try {
+      if (req.file.path && fs.existsSync(req.file.path)) {
+        const fileBuffer = fs.readFileSync(req.file.path);
+        dataUrl = `data:${req.file.mimetype};base64,${fileBuffer.toString('base64')}`;
+      }
+    } catch {
+      // Fallback to relative file path if reading buffer fails
+    }
+    res.json({ url: dataUrl, fileUrl, filename: req.file.filename });
   });
 });
 

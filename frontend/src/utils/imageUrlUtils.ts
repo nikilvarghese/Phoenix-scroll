@@ -51,3 +51,51 @@ export const formatImageUrl = (url?: string): string => {
   // Fallback: prepend baseHost if relative path without leading slash
   return baseHost ? `${baseHost}/${trimmed}` : `/${trimmed}`;
 };
+
+/**
+ * Compresses an image file client-side using an HTML5 Canvas into a high-quality,
+ * lightweight JPEG Data URL. This guarantees that uploaded book covers are stored directly
+ * in MongoDB Atlas and will NEVER disappear when ephemeral server containers (e.g. Render) restart.
+ */
+export const compressImageFile = (
+  file: File,
+  maxWidth = 1000,
+  maxHeight = 1400,
+  quality = 0.85
+): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) {
+      return reject(new Error('Selected file is not an image.'));
+    }
+
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (e) => {
+      const img = new Image();
+      img.src = e.target?.result as string;
+      img.onload = () => {
+        let { width, height } = img;
+
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          return resolve(img.src);
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(dataUrl);
+      };
+      img.onerror = () => reject(new Error('Failed to load image for compression.'));
+    };
+    reader.onerror = () => reject(new Error('Failed to read image file.'));
+  });
+};

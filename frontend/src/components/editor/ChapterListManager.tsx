@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Chapter } from '../../types';
 import {
   Plus,
@@ -502,9 +503,9 @@ export const ChapterListManager: React.FC<ChapterListManagerProps> = ({
         </div>
       )}
 
-      {/* Arc Range Selection & Configuration Modal */}
-      {isArcModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+      {/* Arc Range Selection & Configuration Modal (Portaled to body to prevent stacking context clipping) */}
+      {isArcModalOpen && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-xs p-4">
           <div className="bg-paper-card max-w-md w-full p-6 rounded-2xl border border-paper-border shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-stone-200">
               <div className="flex items-center space-x-2 text-amber-900">
@@ -638,12 +639,13 @@ export const ChapterListManager: React.FC<ChapterListManagerProps> = ({
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* Delete Arc Confirmation Modal */}
-      {arcToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+      {/* Delete Arc Confirmation Modal (Portaled to body to prevent stacking context clipping) */}
+      {arcToDelete && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-xs p-4">
           <div className="bg-paper-card max-w-sm w-full p-5 rounded-2xl border border-paper-border shadow-2xl space-y-4">
             <div className="flex items-center space-x-2 text-amber-900">
               <AlertCircle className="w-5 h-5 text-amber-800" />
@@ -678,7 +680,8 @@ export const ChapterListManager: React.FC<ChapterListManagerProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

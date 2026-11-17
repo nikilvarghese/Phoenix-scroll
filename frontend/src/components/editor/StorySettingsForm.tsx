@@ -3,7 +3,7 @@ import { Story } from '../../types';
 import { storyService } from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 import { Upload, Lock, EyeOff, Globe, Image as ImageIcon, Save, KeyRound } from 'lucide-react';
-import { formatImageUrl } from '../../utils/imageUrlUtils';
+import { formatImageUrl, compressImageFile } from '../../utils/imageUrlUtils';
 
 interface StorySettingsFormProps {
   story: Partial<Story>;
@@ -27,10 +27,18 @@ export const StorySettingsForm: React.FC<StorySettingsFormProps> = ({
 
     try {
       setUploading(true);
-      const data = await storyService.uploadImage(file);
-      onChange({ coverImage: data.url });
+      // Fast client-side compression to Data URL ensures the cover image is permanently stored
+      // in MongoDB Atlas and will NEVER disappear when ephemeral server containers (e.g. Render) restart.
+      const compressedDataUrl = await compressImageFile(file);
+      onChange({ coverImage: compressedDataUrl });
     } catch (err: any) {
-      showError(err.response?.data?.message || 'Failed to upload image. Make sure it is under 10MB JPG, PNG, WEBP, or GIF.');
+      // Fallback to upload endpoint if canvas compression fails
+      try {
+        const data = await storyService.uploadImage(file);
+        onChange({ coverImage: data.url });
+      } catch (uploadErr: any) {
+        showError(uploadErr.response?.data?.message || 'Failed to upload image. Make sure it is under 10MB JPG, PNG, WEBP, or GIF.');
+      }
     } finally {
       setUploading(false);
     }
