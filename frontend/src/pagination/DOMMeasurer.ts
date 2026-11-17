@@ -35,11 +35,11 @@ export class DOMMeasurer {
     this.container.style.height = `${effectiveHeight}px`;
     this.container.style.maxHeight = `${effectiveHeight}px`;
 
-    // Apply exact padding & typography classes matching reader layout
+    // Apply exact typography classes matching reader layout
     const fontClass = this.getFontFamilyClass(settings.font);
-    this.innerContent!.className = `prose-reader ${fontClass} text-stone-900 text-justify leading-snug p-4 sm:p-6`;
-    this.innerContent!.style.fontSize = `${settings.fontSize || 17}px`;
-    this.innerContent!.style.lineHeight = `${settings.lineHeight || 1.45}`;
+    this.innerContent!.className = `w-full prose-reader ${fontClass} font-normal text-stone-900 text-left`;
+    this.innerContent!.style.fontSize = `${settings.fontSize || 18}px`;
+    this.innerContent!.style.lineHeight = `${settings.lineHeight || 1.7}`;
     this.innerContent!.style.boxSizing = 'border-box';
 
     this.clear();

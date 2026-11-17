@@ -268,15 +268,15 @@ export const BookReaderLayout: React.FC<BookReaderLayoutProps> = ({
               </div>
 
               {/* Page Body Text */}
-              <div className="flex-1 min-h-0 overflow-hidden prose-reader font-serif leading-snug text-stone-900 text-justify flex flex-col justify-start">
+              <div className="w-full flex-1 min-h-0 overflow-hidden flex flex-col justify-start">
                 <motion.div
                   key={`left-${leftPageIndex}`}
                   initial={{ opacity: 0.6 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.12, ease: 'easeOut' }}
-                  className="flex-1 min-h-0 flex flex-col justify-start"
+                  className="w-full flex-1 min-h-0 flex flex-col justify-start"
                 >
-                  <RichContentRenderer content={leftPageContent} isFirstPage={leftPageObj?.isChapterStartPage} />
+                  <RichContentRenderer content={leftPageContent} isFirstPage={leftPageObj?.isChapterStartPage} isBookLayout={true} />
                 </motion.div>
               </div>
 
@@ -303,15 +303,15 @@ export const BookReaderLayout: React.FC<BookReaderLayoutProps> = ({
 
                 {/* Right Page Body Text */}
                 {rightPageContent ? (
-                  <div className="flex-1 min-h-0 overflow-hidden prose-reader font-serif leading-snug text-stone-900 text-justify flex flex-col justify-start">
+                  <div className="w-full flex-1 min-h-0 overflow-hidden flex flex-col justify-start">
                     <motion.div
                       key={`right-${rightPageIndex}`}
                       initial={{ opacity: 0.6 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.12, ease: 'easeOut' }}
-                      className="flex-1 min-h-0 flex flex-col justify-start"
+                      className="w-full flex-1 min-h-0 flex flex-col justify-start"
                     >
-                      <RichContentRenderer content={rightPageContent} isFirstPage={rightPageObj?.isChapterStartPage} />
+                      <RichContentRenderer content={rightPageContent} isFirstPage={rightPageObj?.isChapterStartPage} isBookLayout={true} />
                     </motion.div>
                   </div>
                 ) : (

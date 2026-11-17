@@ -46,9 +46,30 @@
 }
 
 /* Pro-reader typography styles */
+.prose-reader {
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
 .prose-reader p {
   margin-bottom: 0.85em;
   text-indent: 0;
+  font-weight: 400 !important;
+  font-style: normal;
+  text-align: left;
+}
+
+.prose-reader p em,
+.prose-reader p i {
+  font-style: italic;
+  font-weight: inherit;
+}
+
+.prose-reader p strong,
+.prose-reader p b {
+  font-weight: 700 !important;
 }
 
 .prose-reader blockquote {

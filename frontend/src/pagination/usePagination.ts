@@ -133,8 +133,11 @@ export function usePagination({
     observer.observe(el);
 
     // Initial measurement
-    const initialWidth = el.clientWidth;
-    const initialHeight = el.clientHeight;
+    const style = window.getComputedStyle(el);
+    const padX = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
+    const padY = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0);
+    const initialWidth = Math.max(0, el.clientWidth - padX);
+    const initialHeight = Math.max(0, el.clientHeight - padY);
     if (initialWidth > 0 && initialHeight > 0) {
       handleDimensionChange(initialWidth, initialHeight);
     }

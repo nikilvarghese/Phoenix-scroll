@@ -5,9 +5,14 @@ import { ReaderFont, ReaderWidth } from '../../types';
 interface RichContentRendererProps {
   content: string;
   isFirstPage?: boolean;
+  isBookLayout?: boolean;
 }
 
-export const RichContentRenderer: React.FC<RichContentRendererProps> = ({ content, isFirstPage = false }) => {
+export const RichContentRenderer: React.FC<RichContentRendererProps> = ({
+  content,
+  isFirstPage = false,
+  isBookLayout = false,
+}) => {
   const { settings } = useReader();
 
   const getFontFamilyClass = (font: ReaderFont) => {
@@ -39,9 +44,15 @@ export const RichContentRenderer: React.FC<RichContentRendererProps> = ({ conten
   };
 
   return (
-    <div className={`mx-auto ${getMaxWidthClass(settings.contentWidth)} transition-all duration-300`}>
+    <div
+      className={
+        isBookLayout
+          ? 'w-full flex-1 flex flex-col justify-start'
+          : `mx-auto ${getMaxWidthClass(settings.contentWidth)} transition-all duration-300`
+      }
+    >
       <div
-        className={`prose-reader ${isFirstPage ? 'chapter-first-page' : ''} ${getFontFamilyClass(settings.font)} leading-relaxed text-current`}
+        className={`w-full prose-reader ${isFirstPage ? 'chapter-first-page' : ''} ${getFontFamilyClass(settings.font)} font-normal text-left text-current`}
         style={{
           fontSize: `${settings.fontSize}px`,
           lineHeight: settings.lineHeight,
