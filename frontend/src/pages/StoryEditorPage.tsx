@@ -10,7 +10,7 @@ import { DeleteConfirmModal } from '../components/dashboard/DeleteConfirmModal';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { ArrowLeft, Settings, BookOpen, Eye, CheckCircle2, Globe, AlertTriangle } from 'lucide-react';
-import { isChapterPrologue, isDefaultChapterTitle, getChapterNumberBadge } from '../utils/chapterUtils';
+import { isChapterPrologue, isDefaultChapterTitle, getChapterNumberBadge, getChapterNumber } from '../utils/chapterUtils';
 
 export const StoryEditorPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -157,39 +157,86 @@ export const StoryEditorPage: React.FC = () => {
     }
   };
 
-  // Update Arc for a single chapter
-  const handleUpdateChapterArc = async (chapterId: string, arc: string) => {
-    if (!story._id) return;
-    try {
-      const updated = await chapterService.updateChapter(chapterId, { arc });
-      setChapters((prev) => prev.map((c) => (c._id === chapterId ? updated : c)));
-      if (activeChapter?._id === chapterId) {
-        setActiveChapter(updated);
-      }
-      showSuccess('Chapter arc updated.');
-    } catch (err) {
-      showError('Failed to update chapter arc.');
+  // Save Arc with Range (Validation: Overlaps with different arcs are blocked)
+  const handleSaveArc = async (arcData: {
+    name: string;
+    fromChapter: number;
+    toChapter: number;
+    includePrologue?: boolean;
+    originalName?: string;
+  }): Promise<{ success: boolean; error?: string }> => {
+    if (!story._id) return { success: false, error: 'Please save story title and settings first.' };
+
+    const arcName = arcData.name.trim();
+    if (!arcName) return { success: false, error: 'Please provide an Arc title (e.g. Arc 1).' };
+
+    const sorted = [...chapters].sort((a, b) => a.order - b.order);
+    const hasPrologue = sorted.length > 0 && isChapterPrologue(sorted[0], 0);
+
+    const fromNum = Math.min(arcData.fromChapter, arcData.toChapter);
+    const toNum = Math.max(arcData.fromChapter, arcData.toChapter);
+
+    // Identify target chapters that will be included in this Arc
+    const targetChapterIds = new Set<string>();
+
+    if (arcData.includePrologue && hasPrologue) {
+      targetChapterIds.add(sorted[0]._id);
     }
-  };
 
-  // Split Arc: Assign arc from chapter at fromIndex onwards
-  const handleSplitArc = async (fromIndex: number, newArcName: string) => {
-    if (!story._id || !newArcName.trim()) return;
+    sorted.forEach((ch) => {
+      const chNum = getChapterNumber(ch, sorted);
+      if (typeof chNum === 'number' && chNum >= fromNum && chNum <= toNum) {
+        targetChapterIds.add(ch._id);
+      }
+    });
 
-    const trimmedArc = newArcName.trim();
-    const updatedChapters = chapters.map((ch, idx) => {
-      if (idx >= fromIndex) {
-        return { ...ch, arc: trimmedArc };
+    if (targetChapterIds.size === 0) {
+      return { success: false, error: 'No chapters found within the specified range.' };
+    }
+
+    // Validation: Check for overlap with any DIFFERENT arc
+    const conflictingChapters: { title: string; arc: string }[] = [];
+    sorted.forEach((ch) => {
+      if (targetChapterIds.has(ch._id)) {
+        if (ch.arc && ch.arc.trim() !== '') {
+          // If editing an existing arc, same arc name is allowed
+          const isSameArc =
+            arcData.originalName &&
+            ch.arc.trim().toLowerCase() === arcData.originalName.trim().toLowerCase();
+          if (!isSameArc) {
+            conflictingChapters.push({ title: ch.title, arc: ch.arc });
+          }
+        }
+      }
+    });
+
+    if (conflictingChapters.length > 0) {
+      const conflictList = conflictingChapters.map((c) => `"${c.title}" (${c.arc})`).join(', ');
+      return {
+        success: false,
+        error: `Some of the chapters you are trying to add are already a part of a different arc: ${conflictList}. Please adjust the range.`,
+      };
+    }
+
+    // Apply Arc changes
+    const updatedChapters = sorted.map((ch) => {
+      if (targetChapterIds.has(ch._id)) {
+        return { ...ch, arc: arcName };
+      } else if (
+        arcData.originalName &&
+        ch.arc &&
+        ch.arc.trim().toLowerCase() === arcData.originalName.trim().toLowerCase()
+      ) {
+        // Was previously in this arc but now outside the adjusted range
+        return { ...ch, arc: '' };
       }
       return ch;
     });
 
     setChapters(updatedChapters);
     if (activeChapter) {
-      const activeIdx = chapters.findIndex((c) => c._id === activeChapter._id);
-      if (activeIdx >= fromIndex) {
-        setActiveChapter({ ...activeChapter, arc: trimmedArc });
-      }
+      const updatedActive = updatedChapters.find((c) => c._id === activeChapter._id);
+      if (updatedActive) setActiveChapter(updatedActive);
     }
 
     const chapterOrders = updatedChapters.map((ch, idx) => ({
@@ -203,9 +250,47 @@ export const StoryEditorPage: React.FC = () => {
     try {
       const saved = await chapterService.reorderChapters(story._id, chapterOrders);
       setChapters(saved);
-      showSuccess(`Assigned "${trimmedArc}" from Chapter ${fromIndex + 1} onwards.`);
+      showSuccess(`Arc "${arcName}" saved successfully.`);
+      return { success: true };
+    } catch (err: any) {
+      showError('Failed to save Arc to server.');
+      return { success: false, error: err.message || 'Failed to save Arc.' };
+    }
+  };
+
+  // Delete an Arc (removes arc tag from its chapters)
+  const handleDeleteArc = async (arcName: string) => {
+    if (!story._id) return;
+    const updatedChapters = chapters.map((ch) => {
+      if (ch.arc && ch.arc.trim().toLowerCase() === arcName.trim().toLowerCase()) {
+        return { ...ch, arc: '' };
+      }
+      return ch;
+    });
+
+    setChapters(updatedChapters);
+    if (
+      activeChapter &&
+      activeChapter.arc &&
+      activeChapter.arc.trim().toLowerCase() === arcName.trim().toLowerCase()
+    ) {
+      setActiveChapter({ ...activeChapter, arc: '' });
+    }
+
+    const chapterOrders = updatedChapters.map((ch, idx) => ({
+      chapterId: ch._id,
+      order: idx + 1,
+      title: ch.title,
+      isPrologue: ch.isPrologue,
+      arc: ch.arc,
+    }));
+
+    try {
+      const saved = await chapterService.reorderChapters(story._id, chapterOrders);
+      setChapters(saved);
+      showSuccess(`Arc "${arcName}" removed.`);
     } catch (err) {
-      showError('Failed to save arc split.');
+      showError('Failed to remove Arc.');
     }
   };
 
@@ -496,8 +581,8 @@ export const StoryEditorPage: React.FC = () => {
               onTogglePrologue={handleTogglePrologue}
               onImportDocument={handleImportDocument}
               importingDocument={importingDocument}
-              onUpdateChapterArc={handleUpdateChapterArc}
-              onSplitArc={handleSplitArc}
+              onSaveArc={handleSaveArc}
+              onDeleteArc={handleDeleteArc}
             />
           </div>
 

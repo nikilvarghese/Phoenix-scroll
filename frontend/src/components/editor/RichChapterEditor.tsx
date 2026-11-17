@@ -37,7 +37,6 @@ export const RichChapterEditor: React.FC<RichChapterEditorProps> = ({
   const { showSuccess, showError, showInfo } = useToast();
   const [title, setTitle] = useState(chapter.title);
   const [content, setContent] = useState(chapter.content);
-  const [arc, setArc] = useState(chapter.arc || '');
   const [activeMode, setActiveMode] = useState<'visual' | 'code' | 'preview'>('visual');
   const [uploading, setUploading] = useState(false);
   const [lastSaved, setLastSaved] = useState<string | null>(null);
@@ -53,7 +52,6 @@ export const RichChapterEditor: React.FC<RichChapterEditorProps> = ({
   useEffect(() => {
     setTitle(chapter.title);
     setContent(chapter.content);
-    setArc(chapter.arc || '');
     if (editorRef.current && activeMode === 'visual') {
       editorRef.current.innerHTML = chapter.content || '';
     }
@@ -222,7 +220,7 @@ export const RichChapterEditor: React.FC<RichChapterEditorProps> = ({
 
   const handleManualSave = async () => {
     const finalContent = activeMode === 'visual' && editorRef.current ? editorRef.current.innerHTML : content;
-    await onSaveChapter({ title, content: finalContent, arc: arc.trim() });
+    await onSaveChapter({ title, content: finalContent });
     setLastSaved(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   };
 
@@ -230,7 +228,7 @@ export const RichChapterEditor: React.FC<RichChapterEditorProps> = ({
     <div className="bg-paper-card rounded-2xl border border-paper-border/80 shadow-book overflow-hidden flex flex-col relative">
       {/* Editor Header */}
       <div className="p-4 sm:p-6 bg-stone-50 border-b border-stone-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex-1 space-y-1.5">
+        <div className="flex-1 space-y-1">
           <input
             type="text"
             value={title}
@@ -238,7 +236,7 @@ export const RichChapterEditor: React.FC<RichChapterEditorProps> = ({
             placeholder="Chapter Title..."
             className="w-full font-playfair text-2xl font-bold text-stone-900 bg-transparent border-b border-transparent hover:border-stone-300 focus:border-amber-800 focus:outline-none py-1"
           />
-          <div className="flex flex-wrap items-center gap-3 text-xs text-stone-500 font-sans">
+          <div className="flex items-center space-x-3 text-xs text-stone-500 font-sans">
             <span className="flex items-center space-x-1">
               <Clock className="w-3.5 h-3.5 text-stone-400" />
               <span>{wordCount} words (~{estReadingTime} min read)</span>
@@ -249,19 +247,12 @@ export const RichChapterEditor: React.FC<RichChapterEditorProps> = ({
                 <span>Saved at {lastSaved}</span>
               </span>
             )}
-
-            {/* Arc Setting Input */}
-            <div className="flex items-center space-x-1.5 bg-amber-50/80 px-2.5 py-0.5 rounded-lg border border-amber-200/80 text-amber-900">
-              <Layers className="w-3.5 h-3.5 text-amber-800 flex-shrink-0" />
-              <span className="font-semibold text-[11px] uppercase tracking-wider">Arc:</span>
-              <input
-                type="text"
-                value={arc}
-                onChange={(e) => setArc(e.target.value)}
-                placeholder="e.g. Arc 1 or Arc 1: The Broken Boy"
-                className="text-xs bg-transparent text-amber-950 font-medium placeholder-amber-800/40 focus:outline-none w-48"
-              />
-            </div>
+            {chapter.arc && (
+              <span className="flex items-center space-x-1 text-amber-900 font-semibold bg-amber-100/80 px-2 py-0.5 rounded border border-amber-200">
+                <Layers className="w-3 h-3 text-amber-800" />
+                <span>{chapter.arc}</span>
+              </span>
+            )}
           </div>
         </div>
 

@@ -95,3 +95,28 @@ export const getArcChapterRange = (arcName: string, allChapters: Chapter[]): str
   return min === max ? `Ch ${min}` : `Ch ${min}–${max}`;
 };
 
+export const getChapterNumber = (ch: Chapter, allChapters: Chapter[]): number | 'P' => {
+  const badge = getChapterNumberBadge(ch, allChapters);
+  return badge === 'P' ? 'P' : parseInt(badge, 10);
+};
+
+export const getArcRangeDetails = (arcName: string, allChapters: Chapter[]) => {
+  const sorted = [...allChapters].sort((a, b) => a.order - b.order);
+  const arcChapters = sorted.filter((c) => c.arc && c.arc.trim().toLowerCase() === arcName.trim().toLowerCase());
+  const hasPrologue = arcChapters.some((c) => isChapterPrologue(c, 0));
+  const numericNumbers = arcChapters
+    .map((c) => getChapterNumber(c, allChapters))
+    .filter((n): n is number => typeof n === 'number' && !isNaN(n));
+
+  const min = numericNumbers.length > 0 ? Math.min(...numericNumbers) : 1;
+  const max = numericNumbers.length > 0 ? Math.max(...numericNumbers) : 1;
+
+  return {
+    hasPrologue,
+    fromChapter: min,
+    toChapter: max,
+    count: arcChapters.length,
+  };
+};
+
+
