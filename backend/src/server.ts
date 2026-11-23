@@ -74,6 +74,15 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 const uploadsPath = path.join(process.cwd(), 'uploads');
 app.use('/uploads', express.static(uploadsPath));
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'OK',
+    message: 'Server is running',
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Monitoring Health Endpoint
 app.use('/api/health', healthRoutes);
 
